@@ -4,27 +4,27 @@ import (
 	"archive/zip"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
 )
 
 func TestArchive(t *testing.T) {
-	t.Run("archives a single empty file", func(t *testing.T) {
-		file := strings.NewReader("")
+	t.Run("archives a single empty file called hello.txt", func(t *testing.T) {
 		archive, cleanup := createTempArchive(t, "testdata/archive.zip")
 		defer cleanup()
 
-		Archive(archive, file)
+		writer := zip.NewWriter(archive)
+		archiver := Archiver{Dest: archive, W: writer}
+		archiver.Archive()
 
 		archiveReader, err := zip.OpenReader(archive.Name())
 		assert.NoError(t, err)
 		defer archiveReader.Close()
 
 		assert.Equal(t, 1, len(archiveReader.File))
+		assert.Equal(t, "hello.txt", archiveReader.File[0].Name)
 	})
-
 }
 
 func createTempArchive(t testing.TB, name string) (*os.File, func()) {

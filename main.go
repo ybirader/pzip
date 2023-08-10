@@ -2,15 +2,17 @@ package main
 
 import (
 	"archive/zip"
-	"io"
 	"os"
 )
 
-func Archive(archive *os.File, r io.Reader) {
-	writer := zip.NewWriter(archive)
-	defer writer.Close()
+type Archiver struct {
+	Dest *os.File
+	W    *zip.Writer
+}
 
-	writer.Create("hello.txt")
+func (a *Archiver) Archive() {
+	a.W.Create("hello.txt")
+	a.W.Close()
 }
 
 func main() {
