@@ -14,8 +14,7 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, "testdata/archive.zip")
 		defer cleanup()
 
-		writer := zip.NewWriter(archive)
-		archiver := Archiver{Dest: archive, W: writer}
+		archiver := NewArchiver(archive)
 		archiver.Archive()
 
 		archiveReader, err := zip.OpenReader(archive.Name())

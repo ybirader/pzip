@@ -7,12 +7,16 @@ import (
 
 type Archiver struct {
 	Dest *os.File
-	W    *zip.Writer
+	w    *zip.Writer
+}
+
+func NewArchiver(archive *os.File) *Archiver {
+	return &Archiver{Dest: archive, w: zip.NewWriter(archive)}
 }
 
 func (a *Archiver) Archive() {
-	a.W.Create("hello.txt")
-	a.W.Close()
+	a.w.Create("hello.txt")
+	a.w.Close()
 }
 
 func main() {
