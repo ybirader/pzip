@@ -1,0 +1,2 @@
+sequentaill archiving two files:
+  BenchmarkArchive-8         15499             69284 ns/op

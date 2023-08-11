@@ -59,6 +59,23 @@ func TestArchive(t *testing.T) {
 	})
 }
 
+func BenchmarkArchive(b *testing.B) {
+	file1 := openTestFile(b, srcRoot+"hello.txt")
+	defer file1.Close()
+	file2 := openTestFile(b, srcRoot+"/hello.md")
+	defer file2.Close()
+
+	archive, cleanup := createTempArchive(b, archivePath)
+	defer cleanup()
+
+	archiver := NewArchiver(archive)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		archiver.Archive(file1, file2)
+	}
+}
+
 func openTestFile(t testing.TB, name string) *os.File {
 	t.Helper()
 
