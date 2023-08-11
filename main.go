@@ -17,23 +17,29 @@ func NewArchiver(archive *os.File) *Archiver {
 
 func (a *Archiver) Archive(files ...*os.File) error {
 	for _, file := range files {
-		info, err := file.Stat()
-		if err != nil {
-			return err
-		}
-
-		writer, err := a.w.Create(info.Name())
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(writer, file)
-		if err != nil {
-			return err
-		}
+		a.writeFile(file)
 	}
 
 	a.w.Close()
+	return nil
+}
+
+func (a *Archiver) writeFile(file *os.File) error {
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	writer, err := a.w.Create(info.Name())
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(writer, file)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
