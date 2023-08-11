@@ -11,12 +11,12 @@ import (
 
 const (
 	archivePath = "testdata/archive.zip"
+	srcRoot     = "testdata/"
 )
 
 func TestArchive(t *testing.T) {
 	t.Run("archives a single non-empty file with a name", func(t *testing.T) {
-		file, err := os.Open("testdata/hello.txt")
-		assert.NoError(t, err)
+		file := openTestFile(t, srcRoot+"hello.txt")
 		defer file.Close()
 
 		archive, cleanup := createTempArchive(t, archivePath)
@@ -30,21 +30,6 @@ func TestArchive(t *testing.T) {
 
 		assert.Equal(t, 1, len(archiveReader.File))
 		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
-	})
-
-	t.Run("archives a single non-empty file with correct content", func(t *testing.T) {
-		file, err := os.Open("testdata/hello.txt")
-		assert.NoError(t, err)
-		defer file.Close()
-
-		archive, cleanup := createTempArchive(t, archivePath)
-		defer cleanup()
-
-		archiver := NewArchiver(archive)
-		archiver.Archive(file)
-
-		archiveReader := getArchiveReader(t, archive.Name())
-		defer archiveReader.Close()
 
 		info, err := file.Stat()
 		assert.NoError(t, err)
@@ -56,11 +41,9 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives two files sequentially", func(t *testing.T) {
-		file1, err := os.Open("testdata/hello.txt")
-		assert.NoError(t, err)
+		file1 := openTestFile(t, srcRoot+"hello.txt")
 		defer file1.Close()
-		file2, err := os.Open("testdata/hello.md")
-		assert.NoError(t, err)
+		file2 := openTestFile(t, srcRoot+"/hello.md")
 		defer file2.Close()
 
 		archive, cleanup := createTempArchive(t, archivePath)
@@ -74,6 +57,15 @@ func TestArchive(t *testing.T) {
 
 		assert.Equal(t, 2, len(archiveReader.File))
 	})
+}
+
+func openTestFile(t testing.TB, name string) *os.File {
+	t.Helper()
+
+	file, err := os.Open(name)
+	assert.NoError(t, err, fmt.Sprintf("could not open %s: %v", name, err))
+
+	return file
 }
 
 func createTempArchive(t testing.TB, name string) (*os.File, func()) {
