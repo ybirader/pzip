@@ -2,10 +2,8 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -16,8 +14,11 @@ const (
 )
 
 func TestArchive(t *testing.T) {
-	t.Run("archives a single empty file called hello.txt", func(t *testing.T) {
-		file := bytes.NewBufferString("")
+	t.Run("archives a single non-empty file with a name", func(t *testing.T) {
+		file, err := os.Open("testdata/hello.txt")
+		assert.NoError(t, err)
+		defer file.Close()
+
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
@@ -28,12 +29,14 @@ func TestArchive(t *testing.T) {
 		defer archiveReader.Close()
 
 		assert.Equal(t, 1, len(archiveReader.File))
-		assert.Equal(t, "hello.txt", archiveReader.File[0].Name)
+		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
 	})
 
-	t.Run("archives a single non-empty file called hello.txt", func(t *testing.T) {
-		fileContent := "hello, world!"
-		file := strings.NewReader(fileContent)
+	t.Run("archives a single non-empty file with correct content", func(t *testing.T) {
+		file, err := os.Open("testdata/hello.txt")
+		assert.NoError(t, err)
+		defer file.Close()
+
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
@@ -43,10 +46,13 @@ func TestArchive(t *testing.T) {
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		got := archiveReader.File[0].UncompressedSize64
-		want := uint64(len(fileContent))
+		info, err := file.Stat()
+		assert.NoError(t, err)
 
-		assert.Equal(t, want, got, "expected %s to have size %d but got %d", "hello.txt", want, got)
+		got := archiveReader.File[0].UncompressedSize64
+		want := uint64(info.Size())
+
+		assert.Equal(t, want, got, "expected file %s to have raw size %d but got %d", file.Name(), want, got)
 	})
 }
 
@@ -71,4 +77,16 @@ func getArchiveReader(t testing.TB, name string) *zip.ReadCloser {
 	assert.NoError(t, err)
 
 	return reader
+}
+
+func assertArchiveContainsFile(t testing.TB, files []*zip.File, name string) {
+	t.Helper()
+
+	for _, f := range files {
+		if f.Name == name {
+			return
+		}
+	}
+
+	t.Errorf("expected file %s to be in archive but wasn't", name)
 }
