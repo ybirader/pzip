@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -31,7 +32,8 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives a single non-empty file called hello.txt", func(t *testing.T) {
-		file := bytes.NewBufferString("hello, world!")
+		fileContent := "hello, world!"
+		file := strings.NewReader(fileContent)
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
@@ -42,7 +44,7 @@ func TestArchive(t *testing.T) {
 		defer archiveReader.Close()
 
 		got := archiveReader.File[0].UncompressedSize64
-		want := uint64(file.Len())
+		want := uint64(len(fileContent))
 
 		assert.Equal(t, want, got, "expected %s to have size %d but got %d", "hello.txt", want, got)
 	})
