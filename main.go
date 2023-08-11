@@ -15,20 +15,22 @@ func NewArchiver(archive *os.File) *Archiver {
 	return &Archiver{Dest: archive, w: zip.NewWriter(archive)}
 }
 
-func (a *Archiver) Archive(file *os.File) error {
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
+func (a *Archiver) Archive(files ...*os.File) error {
+	for _, file := range files {
+		info, err := file.Stat()
+		if err != nil {
+			return err
+		}
 
-	writer, err := a.w.Create(info.Name())
-	if err != nil {
-		return err
-	}
+		writer, err := a.w.Create(info.Name())
+		if err != nil {
+			return err
+		}
 
-	_, err = io.Copy(writer, file)
-	if err != nil {
-		return err
+		_, err = io.Copy(writer, file)
+		if err != nil {
+			return err
+		}
 	}
 
 	a.w.Close()

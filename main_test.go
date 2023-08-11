@@ -54,6 +54,26 @@ func TestArchive(t *testing.T) {
 
 		assert.Equal(t, want, got, "expected file %s to have raw size %d but got %d", file.Name(), want, got)
 	})
+
+	t.Run("archives two files sequentially", func(t *testing.T) {
+		file1, err := os.Open("testdata/hello.txt")
+		assert.NoError(t, err)
+		defer file1.Close()
+		file2, err := os.Open("testdata/hello.md")
+		assert.NoError(t, err)
+		defer file2.Close()
+
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver := NewArchiver(archive)
+		archiver.Archive(file1, file2)
+
+		archiveReader := getArchiveReader(t, archive.Name())
+		defer archiveReader.Close()
+
+		assert.Equal(t, 2, len(archiveReader.File))
+	})
 }
 
 func createTempArchive(t testing.TB, name string) (*os.File, func()) {
