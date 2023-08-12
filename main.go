@@ -82,7 +82,7 @@ func (a *Archiver) WriteFile(path string, info fs.FileInfo) error {
 		return err
 	}
 
-	_, err = io.Copy(writer, file)
+	err = a.writeContents(writer, file)
 	if err != nil {
 		return err
 	}
@@ -102,6 +102,15 @@ func (a *Archiver) createFile(info fs.FileInfo) (io.Writer, error) {
 	}
 
 	return writer, nil
+}
+
+func (a *Archiver) writeContents(w io.Writer, r io.Reader) error {
+	_, err := io.Copy(w, r)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
