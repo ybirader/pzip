@@ -100,15 +100,6 @@ func BenchmarkArchive(b *testing.B) {
 	}
 }
 
-// func openTestFile(t testing.TB, name string) *os.File {
-// 	t.Helper()
-
-// 	file, err := os.Open(name)
-// 	assert.NoError(t, err, fmt.Sprintf("could not open %s: %v", name, err))
-
-// 	return file
-// }
-
 func createTempArchive(t testing.TB, name string) (*os.File, func()) {
 	t.Helper()
 
