@@ -21,22 +21,7 @@ func NewArchiver(archive *os.File) *Archiver {
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
-	files := make(map[string]fs.FileInfo, 0)
-
-	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == root {
-			return nil
-		}
-
-		files[path] = info
-
-		return nil
-	})
-
+	files, err := a.getFiles(root)
 	if err != nil {
 		return err
 	}
@@ -76,6 +61,30 @@ func (a *Archiver) Close() error {
 	}
 
 	return nil
+}
+
+func (a *Archiver) getFiles(root string) (map[string]fs.FileInfo, error) {
+	files := make(map[string]fs.FileInfo, 0)
+
+	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == root {
+			return nil
+		}
+
+		files[path] = info
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
 }
 
 func (a *Archiver) archive(files map[string]fs.FileInfo) error {
@@ -135,11 +144,13 @@ func (a *Archiver) writeContents(w io.Writer, r io.Reader) error {
 	return nil
 }
 
-func CompressToBuffer(buf *bytes.Buffer, path string) {
+const DefaultCompression = -1
+
+func compressToBuffer(buf *bytes.Buffer, path string) {
 	file, _ := os.Open(path)
 	defer file.Close()
 
-	compressor, _ := flate.NewWriter(buf, -1)
+	compressor, _ := flate.NewWriter(buf, DefaultCompression)
 	io.Copy(compressor, file)
 	compressor.Close()
 }

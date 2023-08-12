@@ -114,7 +114,7 @@ func TestArchive(t *testing.T) {
 func TestCompressToBuffer(t *testing.T) {
 	t.Run("deflate compresses file to buffer", func(t *testing.T) {
 		buf := bytes.Buffer{}
-		CompressToBuffer(&buf, helloTxtFileFixture)
+		compressToBuffer(&buf, helloTxtFileFixture)
 
 		assert.True(t, buf.Len() != 0)
 	})
