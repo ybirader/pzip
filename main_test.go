@@ -58,15 +58,10 @@ func TestArchive(t *testing.T) {
 
 		original := info.ModTime()
 
-		var archivedFile *zip.File
-
-		for _, f := range archiveReader.File {
-			if f.Name == "hello.txt" {
-				archivedFile = f
-			}
-		}
-
-		assert.NotZero(t, archivedFile)
+		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
+			return file.Name == "hello.txt"
+		})
+		assert.True(t, found)
 
 		want := archivedFile.Modified
 
@@ -144,11 +139,21 @@ func getArchiveReader(t testing.TB, name string) *zip.ReadCloser {
 func assertArchiveContainsFile(t testing.TB, files []*zip.File, name string) {
 	t.Helper()
 
-	for _, f := range files {
-		if f.Name == name {
-			return
+	_, found := Find(files, func(f *zip.File) bool {
+		return f.Name == name
+	})
+
+	if !found {
+		t.Errorf("expected file %s to be in archive but wasn't", name)
+	}
+}
+
+func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
+	for _, e := range elements {
+		if cb(e) {
+			return e, true
 		}
 	}
 
-	t.Errorf("expected file %s to be in archive but wasn't", name)
+	return *new(T), false
 }
