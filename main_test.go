@@ -15,7 +15,7 @@ const (
 )
 
 func TestArchive(t *testing.T) {
-	t.Run("archives a single non-empty file with a name", func(t *testing.T) {
+	t.Run("archives a single file with a name", func(t *testing.T) {
 		file := openTestFile(t, srcRoot+"hello.txt")
 		defer file.Close()
 
@@ -40,7 +40,40 @@ func TestArchive(t *testing.T) {
 		assert.Equal(t, want, got, "expected file %s to have raw size %d but got %d", file.Name(), want, got)
 	})
 
-	t.Run("archives two files sequentially", func(t *testing.T) {
+	t.Run("retains the last modified date of an archived file", func(t *testing.T) {
+		file := openTestFile(t, srcRoot+"hello.txt")
+		defer file.Close()
+
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver := NewArchiver(archive)
+		archiver.Archive(file)
+
+		archiveReader := getArchiveReader(t, archive.Name())
+		defer archiveReader.Close()
+
+		info, err := file.Stat()
+		assert.NoError(t, err)
+
+		original := info.ModTime()
+
+		var archivedFile *zip.File
+
+		for _, f := range archiveReader.File {
+			if f.Name == "hello.txt" {
+				archivedFile = f
+			}
+		}
+
+		assert.NotZero(t, archivedFile)
+
+		want := archivedFile.Modified
+
+		assert.True(t, want.Year() == original.Year() && want.YearDay() == original.YearDay() && want.Second() == original.Second())
+	})
+
+	t.Run("archives two files", func(t *testing.T) {
 		file1 := openTestFile(t, srcRoot+"hello.txt")
 		defer file1.Close()
 		file2 := openTestFile(t, srcRoot+"/hello.md")

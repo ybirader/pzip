@@ -30,7 +30,12 @@ func (a *Archiver) WriteFile(file *os.File) error {
 		return err
 	}
 
-	writer, err := a.w.Create(info.Name())
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
+	}
+
+	writer, err := a.w.CreateHeader(header)
 	if err != nil {
 		return err
 	}
