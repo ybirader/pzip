@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type Archiver struct {
@@ -26,20 +25,25 @@ func (a *Archiver) ArchiveDir(root string) error {
 			return err
 		}
 
-		relativePath := strings.TrimPrefix(path, root)
-
-		if relativePath == "" {
+		if path == root {
 			return nil
 		}
 
-		files[relativePath] = info
+		files[path] = info
 
 		return nil
 	})
 
-	a.archive(files)
+	if err != nil {
+		return err
+	}
 
-	return err
+	err = a.archive(files)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Archiver) ArchiveFiles(files ...string) error {
@@ -62,12 +66,23 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 	return nil
 }
 
-func (a *Archiver) archive(files map[string]fs.FileInfo) error {
-	for path, info := range files {
-		a.WriteFile(path, info)
+func (a *Archiver) Close() error {
+	err := a.w.Close()
+	if err != nil {
+		return err
 	}
 
-	a.w.Close()
+	return nil
+}
+
+func (a *Archiver) archive(files map[string]fs.FileInfo) error {
+	for path, info := range files {
+		err := a.WriteFile(path, info)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -75,6 +90,10 @@ func (a *Archiver) WriteFile(path string, info fs.FileInfo) error {
 	writer, err := a.createFile(info)
 	if err != nil {
 		return err
+	}
+
+	if info.IsDir() {
+		return nil
 	}
 
 	file, err := os.Open(path)

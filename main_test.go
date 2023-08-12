@@ -26,6 +26,7 @@ func TestArchive(t *testing.T) {
 
 		archiver := NewArchiver(archive)
 		archiver.ArchiveFiles(helloTxtFileFixture)
+		archiver.Close()
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -47,6 +48,7 @@ func TestArchive(t *testing.T) {
 
 		archiver := NewArchiver(archive)
 		archiver.ArchiveFiles(helloTxtFileFixture)
+		archiver.Close()
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -67,6 +69,7 @@ func TestArchive(t *testing.T) {
 
 		archiver := NewArchiver(archive)
 		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
+		archiver.Close()
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -79,12 +82,31 @@ func TestArchive(t *testing.T) {
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.ArchiveDir(helloDirectoryFixture)
+		err := archiver.ArchiveDir(helloDirectoryFixture)
+		assert.NoError(t, err)
+		archiver.Close()
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 3, len(archiveReader.File))
+	})
+
+	t.Run("can archive files separately", func(t *testing.T) {
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver := NewArchiver(archive)
+		err := archiver.ArchiveFiles(helloTxtFileFixture)
+		assert.NoError(t, err)
+		err = archiver.ArchiveFiles(helloMarkdownFileFixture)
+		assert.NoError(t, err)
+		archiver.Close()
+
+		archiveReader := getArchiveReader(t, archive.Name())
+		defer archiveReader.Close()
+
+		assert.Equal(t, 2, len(archiveReader.File))
 	})
 }
 
@@ -93,6 +115,7 @@ func BenchmarkArchive(b *testing.B) {
 	defer cleanup()
 
 	archiver := NewArchiver(archive)
+	defer archiver.Close()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
