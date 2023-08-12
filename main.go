@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"io"
+	"io/fs"
 	"os"
 )
 
@@ -30,12 +31,7 @@ func (a *Archiver) WriteFile(file *os.File) error {
 		return err
 	}
 
-	header, err := zip.FileInfoHeader(info)
-	if err != nil {
-		return err
-	}
-
-	writer, err := a.w.CreateHeader(header)
+	writer, err := a.createFile(info)
 	if err != nil {
 		return err
 	}
@@ -46,6 +42,20 @@ func (a *Archiver) WriteFile(file *os.File) error {
 	}
 
 	return nil
+}
+
+func (a *Archiver) createFile(info fs.FileInfo) (io.Writer, error) {
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return nil, err
+	}
+
+	writer, err := a.w.CreateHeader(header)
+	if err != nil {
+		return nil, err
+	}
+
+	return writer, nil
 }
 
 func main() {

@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	archivePath = "testdata/archive.zip"
-	srcRoot     = "testdata/"
+	testdataRoot = "testdata/"
+	archivePath  = testdataRoot + "archive.zip"
 )
 
 func TestArchive(t *testing.T) {
 	t.Run("archives a single file with a name", func(t *testing.T) {
-		file := openTestFile(t, srcRoot+"hello.txt")
+		file := openTestFile(t, testdataRoot+"hello.txt")
 		defer file.Close()
 
 		archive, cleanup := createTempArchive(t, archivePath)
@@ -42,7 +42,7 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("retains the last modified date of an archived file", func(t *testing.T) {
-		file := openTestFile(t, srcRoot+"hello.txt")
+		file := openTestFile(t, testdataRoot+"hello.txt")
 		defer file.Close()
 
 		archive, cleanup := createTempArchive(t, archivePath)
@@ -66,9 +66,9 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives two files", func(t *testing.T) {
-		file1 := openTestFile(t, srcRoot+"hello.txt")
+		file1 := openTestFile(t, testdataRoot+"hello.txt")
 		defer file1.Close()
-		file2 := openTestFile(t, srcRoot+"/hello.md")
+		file2 := openTestFile(t, testdataRoot+"/hello.md")
 		defer file2.Close()
 
 		archive, cleanup := createTempArchive(t, archivePath)
@@ -85,9 +85,9 @@ func TestArchive(t *testing.T) {
 }
 
 func BenchmarkArchive(b *testing.B) {
-	file1 := openTestFile(b, srcRoot+"hello.txt")
+	file1 := openTestFile(b, testdataRoot+"hello.txt")
 	defer file1.Close()
-	file2 := openTestFile(b, srcRoot+"/hello.md")
+	file2 := openTestFile(b, testdataRoot+"/hello.md")
 	defer file2.Close()
 
 	archive, cleanup := createTempArchive(b, archivePath)
