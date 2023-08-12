@@ -11,19 +11,20 @@ import (
 )
 
 const (
-	testdataRoot = "testdata/"
-	archivePath  = testdataRoot + "archive.zip"
+	testdataRoot             = "testdata/"
+	archivePath              = testdataRoot + "archive.zip"
+	helloTxtFileFixture      = testdataRoot + "hello.txt"
+	helloMarkdownFileFixture = testdataRoot + "hello.md"
+	helloDirectoryFixture    = testdataRoot + "hello/"
 )
 
 func TestArchive(t *testing.T) {
 	t.Run("archives a single file with a name", func(t *testing.T) {
-		file := testdataRoot + "hello.txt"
-
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.ArchiveFiles(file)
+		archiver.ArchiveFiles(helloTxtFileFixture)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -31,7 +32,7 @@ func TestArchive(t *testing.T) {
 		assert.Equal(t, 1, len(archiveReader.File))
 		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
 
-		info, err := os.Stat(file)
+		info, err := os.Stat(helloTxtFileFixture)
 		assert.NoError(t, err)
 
 		got := archiveReader.File[0].UncompressedSize64
@@ -41,18 +42,16 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("retains the last modified date of an archived file", func(t *testing.T) {
-		file := testdataRoot + "hello.txt"
-
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.ArchiveFiles(file)
+		archiver.ArchiveFiles(helloTxtFileFixture)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		info, err := os.Stat(file)
+		info, err := os.Stat(helloTxtFileFixture)
 		assert.NoError(t, err)
 
 		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
@@ -64,14 +63,11 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives two files", func(t *testing.T) {
-		file1 := testdataRoot + "hello.txt"
-		file2 := testdataRoot + "/hello.md"
-
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.ArchiveFiles(file1, file2)
+		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -80,13 +76,11 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives a directory of files", func(t *testing.T) {
-		dir := testdataRoot + "hello/"
-
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.ArchiveDir(dir)
+		archiver.ArchiveDir(helloDirectoryFixture)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -96,9 +90,6 @@ func TestArchive(t *testing.T) {
 }
 
 func BenchmarkArchive(b *testing.B) {
-	file1 := testdataRoot + "hello.txt"
-	file2 := testdataRoot + "/hello.md"
-
 	archive, cleanup := createTempArchive(b, archivePath)
 	defer cleanup()
 
@@ -106,7 +97,7 @@ func BenchmarkArchive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		archiver.ArchiveFiles(file1, file2)
+		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
 	}
 }
 
