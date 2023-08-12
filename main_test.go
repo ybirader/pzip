@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/alecthomas/assert/v2"
 )
@@ -56,16 +57,12 @@ func TestArchive(t *testing.T) {
 		info, err := file.Stat()
 		assert.NoError(t, err)
 
-		original := info.ModTime()
-
 		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
 			return file.Name == "hello.txt"
 		})
 		assert.True(t, found)
 
-		want := archivedFile.Modified
-
-		assert.True(t, want.Year() == original.Year() && want.YearDay() == original.YearDay() && want.Second() == original.Second())
+		assertMatchingTimes(t, archivedFile.Modified, info.ModTime())
 	})
 
 	t.Run("archives two files", func(t *testing.T) {
@@ -146,6 +143,14 @@ func assertArchiveContainsFile(t testing.TB, files []*zip.File, name string) {
 	if !found {
 		t.Errorf("expected file %s to be in archive but wasn't", name)
 	}
+}
+
+func assertMatchingTimes(t testing.TB, t1, t2 time.Time) {
+	t.Helper()
+
+	assert.True(t,
+		t1.Year() == t2.Year() && t1.YearDay() == t2.YearDay() && t1.Second() == t2.Second(),
+		fmt.Sprintf("expected %+v to match %+v but didn't", t1, t2))
 }
 
 func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
