@@ -17,14 +17,13 @@ const (
 
 func TestArchive(t *testing.T) {
 	t.Run("archives a single file with a name", func(t *testing.T) {
-		file := openTestFile(t, testdataRoot+"hello.txt")
-		defer file.Close()
+		file := testdataRoot + "hello.txt"
 
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.Archive(file)
+		archiver.ArchiveFiles(file)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
@@ -32,29 +31,28 @@ func TestArchive(t *testing.T) {
 		assert.Equal(t, 1, len(archiveReader.File))
 		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
 
-		info, err := file.Stat()
+		info, err := os.Stat(file)
 		assert.NoError(t, err)
 
 		got := archiveReader.File[0].UncompressedSize64
 		want := uint64(info.Size())
 
-		assert.Equal(t, want, got, "expected file %s to have raw size %d but got %d", file.Name(), want, got)
+		assert.Equal(t, want, got, "expected file %s to have raw size %d but got %d", info.Name(), want, got)
 	})
 
 	t.Run("retains the last modified date of an archived file", func(t *testing.T) {
-		file := openTestFile(t, testdataRoot+"hello.txt")
-		defer file.Close()
+		file := testdataRoot + "hello.txt"
 
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.Archive(file)
+		archiver.ArchiveFiles(file)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		info, err := file.Stat()
+		info, err := os.Stat(file)
 		assert.NoError(t, err)
 
 		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
@@ -66,29 +64,40 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives two files", func(t *testing.T) {
-		file1 := openTestFile(t, testdataRoot+"hello.txt")
-		defer file1.Close()
-		file2 := openTestFile(t, testdataRoot+"/hello.md")
-		defer file2.Close()
+		file1 := testdataRoot + "hello.txt"
+		file2 := testdataRoot + "/hello.md"
 
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver := NewArchiver(archive)
-		archiver.Archive(file1, file2)
+		archiver.ArchiveFiles(file1, file2)
 
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 2, len(archiveReader.File))
 	})
+
+	t.Run("archives a directory of files", func(t *testing.T) {
+		dir := testdataRoot + "hello/"
+
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver := NewArchiver(archive)
+		archiver.ArchiveDir(dir)
+
+		archiveReader := getArchiveReader(t, archive.Name())
+		defer archiveReader.Close()
+
+		assert.Equal(t, 3, len(archiveReader.File))
+	})
 }
 
 func BenchmarkArchive(b *testing.B) {
-	file1 := openTestFile(b, testdataRoot+"hello.txt")
-	defer file1.Close()
-	file2 := openTestFile(b, testdataRoot+"/hello.md")
-	defer file2.Close()
+	file1 := testdataRoot + "hello.txt"
+	file2 := testdataRoot + "/hello.md"
 
 	archive, cleanup := createTempArchive(b, archivePath)
 	defer cleanup()
@@ -97,18 +106,18 @@ func BenchmarkArchive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		archiver.Archive(file1, file2)
+		archiver.ArchiveFiles(file1, file2)
 	}
 }
 
-func openTestFile(t testing.TB, name string) *os.File {
-	t.Helper()
+// func openTestFile(t testing.TB, name string) *os.File {
+// 	t.Helper()
 
-	file, err := os.Open(name)
-	assert.NoError(t, err, fmt.Sprintf("could not open %s: %v", name, err))
+// 	file, err := os.Open(name)
+// 	assert.NoError(t, err, fmt.Sprintf("could not open %s: %v", name, err))
 
-	return file
-}
+// 	return file
+// }
 
 func createTempArchive(t testing.TB, name string) (*os.File, func()) {
 	t.Helper()
