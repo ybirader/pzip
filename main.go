@@ -2,10 +2,13 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/klauspost/compress/flate"
 )
 
 type Archiver struct {
@@ -130,6 +133,15 @@ func (a *Archiver) writeContents(w io.Writer, r io.Reader) error {
 	}
 
 	return nil
+}
+
+func CompressToBuffer(buf *bytes.Buffer, path string) {
+	file, _ := os.Open(path)
+	defer file.Close()
+
+	compressor, _ := flate.NewWriter(buf, -1)
+	io.Copy(compressor, file)
+	compressor.Close()
 }
 
 func main() {
