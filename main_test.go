@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"fmt"
+	"io/fs"
 	"os"
 	"testing"
 	"time"
@@ -32,8 +33,7 @@ func TestArchive(t *testing.T) {
 		assert.Equal(t, 1, len(archiveReader.File))
 		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
 
-		info, err := os.Stat(helloTxtFileFixture)
-		assert.NoError(t, err)
+		info := getFileInfo(t, helloTxtFileFixture)
 
 		got := archiveReader.File[0].UncompressedSize64
 		want := uint64(info.Size())
@@ -51,8 +51,7 @@ func TestArchive(t *testing.T) {
 		archiveReader := getArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		info, err := os.Stat(helloTxtFileFixture)
-		assert.NoError(t, err)
+		info := getFileInfo(t, helloTxtFileFixture)
 
 		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
 			return file.Name == "hello.txt"
@@ -151,6 +150,15 @@ func assertMatchingTimes(t testing.TB, t1, t2 time.Time) {
 	assert.True(t,
 		t1.Year() == t2.Year() && t1.YearDay() == t2.YearDay() && t1.Second() == t2.Second(),
 		fmt.Sprintf("expected %+v to match %+v but didn't", t1, t2))
+}
+
+func getFileInfo(t testing.TB, name string) fs.FileInfo {
+	t.Helper()
+
+	info, err := os.Stat(name)
+	assert.NoError(t, err, fmt.Sprintf("could not get file into fot %s", name))
+
+	return info
 }
 
 func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
