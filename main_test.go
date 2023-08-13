@@ -27,7 +27,8 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
-		archiver := NewArchiver(archive)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 		archiver.ArchiveFiles(helloTxtFileFixture)
 		archiver.Close()
 
@@ -49,7 +50,8 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
-		archiver := NewArchiver(archive)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 		archiver.ArchiveFiles(helloTxtFileFixture)
 		archiver.Close()
 
@@ -70,7 +72,8 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
-		archiver := NewArchiver(archive)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
 		archiver.Close()
 
@@ -84,8 +87,9 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
-		archiver := NewArchiver(archive)
-		err := archiver.ArchiveDir(helloDirectoryFixture)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+		err = archiver.ArchiveDir(helloDirectoryFixture)
 		assert.NoError(t, err)
 		archiver.Close()
 
@@ -99,8 +103,9 @@ func TestArchive(t *testing.T) {
 		archive, cleanup := createTempArchive(t, archivePath)
 		defer cleanup()
 
-		archiver := NewArchiver(archive)
-		err := archiver.ArchiveFiles(helloTxtFileFixture)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+		err = archiver.ArchiveFiles(helloTxtFileFixture)
 		assert.NoError(t, err)
 		err = archiver.ArchiveFiles(helloMarkdownFileFixture)
 		assert.NoError(t, err)
@@ -188,7 +193,8 @@ func BenchmarkArchive(b *testing.B) {
 	archive, cleanup := createTempArchive(b, archivePath)
 	defer cleanup()
 
-	archiver := NewArchiver(archive)
+	archiver, err := NewArchiver(archive)
+	assert.NoError(b, err)
 	defer archiver.Close()
 	b.ResetTimer()
 

@@ -24,7 +24,7 @@ type File struct {
 	Info fs.FileInfo
 }
 
-func NewArchiver(archive *os.File) *Archiver {
+func NewArchiver(archive *os.File) (*Archiver, error) {
 	a := &Archiver{Dest: archive,
 		w:               zip.NewWriter(archive),
 		numberOfWorkers: runtime.GOMAXPROCS(0),
@@ -34,17 +34,23 @@ func NewArchiver(archive *os.File) *Archiver {
 		a.fileWriterPool.Enqueue(file)
 	}
 
-	fileProcessPool, _ := NewFileProcessPool(a.numberOfWorkers, fileProcessExecutor)
+	fileProcessPool, err := NewFileProcessPool(a.numberOfWorkers, fileProcessExecutor)
+	if err != nil {
+		return nil, err
+	}
 	a.fileProcessPool = fileProcessPool
 
 	fileWriterExecutor := func(file File) {
 		a.archive(&file)
 	}
 
-	fileWriterPool, _ := NewFileProcessPool(1, fileWriterExecutor)
+	fileWriterPool, err := NewFileProcessPool(1, fileWriterExecutor)
+	if err != nil {
+		return nil, err
+	}
 	a.fileWriterPool = fileWriterPool
 
-	return a
+	return a, nil
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
