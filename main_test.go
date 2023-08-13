@@ -118,11 +118,16 @@ func TestArchive(t *testing.T) {
 
 func TestCompressToBuffer(t *testing.T) {
 	t.Run("compresses file to buffer using default deflate compression", func(t *testing.T) {
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 		info := getFileInfo(t, helloTxtFileFixture)
 		file := File{Path: helloTxtFileFixture, Info: info}
 
 		buf := bytes.Buffer{}
-		compressToBuffer(&buf, file)
+		archiver.compressToBuffer(&buf, &file)
 
 		want := []byte{0, 14, 0, 241, 255, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 3, 0}
 

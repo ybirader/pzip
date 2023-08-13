@@ -23,8 +23,9 @@ type Archiver struct {
 }
 
 type File struct {
-	Path string
-	Info fs.FileInfo
+	Path           string
+	Info           fs.FileInfo
+	CompressedData bytes.Buffer
 }
 
 func NewArchiver(archive *os.File) (*Archiver, error) {
@@ -34,6 +35,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 
 	fileProcessExecutor := func(file File) {
+		a.compress(&file)
 		a.fileWriterPool.Enqueue(file)
 	}
 
@@ -236,11 +238,32 @@ func (a *Archiver) writeContents(w io.Writer, r io.Reader) error {
 
 const DefaultCompression = -1
 
-func compressToBuffer(buf *bytes.Buffer, file File) {
-	f, _ := os.Open(file.Path)
-	compressor, _ := flate.NewWriter(buf, DefaultCompression)
+func (a *Archiver) compress(file *File) error {
+	buf := bytes.Buffer{}
+	err := a.compressToBuffer(&buf, file)
+	if err != nil {
+		return err
+	}
+	file.CompressedData = buf
+	return nil
+}
+
+func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
+	f, err := os.Open(file.Path)
+	if err != nil {
+		return err
+	}
+	compressor, err := flate.NewWriter(buf, DefaultCompression)
+	if err != nil {
+		return err
+	}
 	defer compressor.Close()
-	io.Copy(compressor, f)
+	_, err = io.Copy(compressor, f)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
