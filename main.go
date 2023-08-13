@@ -14,9 +14,9 @@ import (
 type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
-	filesToWrite    chan File
 	numberOfWorkers int
 	fileProcessPool *FileProcessPool
+	fileWriterPool  *FileProcessPool
 }
 
 type File struct {
@@ -30,12 +30,19 @@ func NewArchiver(archive *os.File) *Archiver {
 		numberOfWorkers: runtime.GOMAXPROCS(0),
 	}
 
-	executor := func(file File) {
-		a.filesToWrite <- file
+	fileProcessExecutor := func(file File) {
+		a.fileWriterPool.Enqueue(file)
 	}
 
-	fileProcessPool, _ := NewFileProcessPool(a.numberOfWorkers, executor)
+	fileProcessPool, _ := NewFileProcessPool(a.numberOfWorkers, fileProcessExecutor)
 	a.fileProcessPool = fileProcessPool
+
+	fileWriterExecutor := func(file File) {
+		a.archive(&file)
+	}
+
+	fileWriterPool, _ := NewFileProcessPool(1, fileWriterExecutor)
+	a.fileWriterPool = fileWriterPool
 
 	return a
 }
@@ -106,12 +113,8 @@ func (f *FileProcessPool) reset() {
 }
 
 func (a *Archiver) walkDir(root string) error {
-	a.filesToWrite = make(chan File)
 	a.fileProcessPool.Start()
-
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	go a.writeFiles(wg)
+	a.fileWriterPool.Start()
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -132,20 +135,14 @@ func (a *Archiver) walkDir(root string) error {
 	}
 
 	a.fileProcessPool.Close()
-	close(a.filesToWrite)
-	wg.Wait()
+	a.fileWriterPool.Close()
 
 	return nil
 }
 
 func (a *Archiver) ArchiveFiles(files ...string) error {
-	a.filesToWrite = make(chan File)
 	a.fileProcessPool.Start()
-
-	wg := new(sync.WaitGroup)
-
-	wg.Add(1)
-	go a.writeFiles(wg)
+	a.fileWriterPool.Start()
 
 	for _, path := range files {
 		info, err := os.Lstat(path)
@@ -158,9 +155,7 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 	}
 
 	a.fileProcessPool.Close()
-	close(a.filesToWrite)
-
-	wg.Wait()
+	a.fileWriterPool.Close()
 
 	return nil
 }
@@ -172,14 +167,6 @@ func (a *Archiver) Close() error {
 	}
 
 	return nil
-}
-
-func (a *Archiver) writeFiles(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	for file := range a.filesToWrite {
-		a.archive(&file)
-	}
 }
 
 func (a *Archiver) archive(f *File) error {
