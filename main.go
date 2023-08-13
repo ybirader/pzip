@@ -16,17 +16,45 @@ type Archiver struct {
 	w    *zip.Writer
 }
 
+type File struct {
+	Path string
+	Info fs.FileInfo
+}
+
 func NewArchiver(archive *os.File) *Archiver {
 	return &Archiver{Dest: archive, w: zip.NewWriter(archive)}
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
-	files, err := a.getFiles(root)
+	err := a.walkDir(root)
+
 	if err != nil {
 		return err
 	}
 
-	err = a.archive(files)
+	return nil
+}
+
+func (a *Archiver) walkDir(root string) error {
+	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == root {
+			return nil
+		}
+
+		f := File{Path: path, Info: info}
+
+		err = a.archive(&f)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
@@ -35,20 +63,17 @@ func (a *Archiver) ArchiveDir(root string) error {
 }
 
 func (a *Archiver) ArchiveFiles(files ...string) error {
-	f := make(map[string]fs.FileInfo, 0)
-
-	for _, name := range files {
-		info, err := os.Lstat(name)
+	for _, path := range files {
+		info, err := os.Lstat(path)
 		if err != nil {
 			return err
 		}
 
-		f[name] = info
-	}
-
-	err := a.archive(f)
-	if err != nil {
-		return err
+		f := File{Path: path, Info: info}
+		err = a.archive(&f)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -63,52 +88,27 @@ func (a *Archiver) Close() error {
 	return nil
 }
 
-func (a *Archiver) getFiles(root string) (map[string]fs.FileInfo, error) {
-	files := make(map[string]fs.FileInfo, 0)
-
-	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == root {
-			return nil
-		}
-
-		files[path] = info
-
-		return nil
-	})
+func (a *Archiver) archive(f *File) error {
+	err := a.writeFile(f)
 
 	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
-}
-
-func (a *Archiver) archive(files map[string]fs.FileInfo) error {
-	for path, info := range files {
-		err := a.WriteFile(path, info)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	return nil
 }
 
-func (a *Archiver) WriteFile(path string, info fs.FileInfo) error {
-	writer, err := a.createFile(info)
+func (a *Archiver) writeFile(f *File) error {
+	writer, err := a.createFile(f.Info)
 	if err != nil {
 		return err
 	}
 
-	if info.IsDir() {
+	if f.Info.IsDir() {
 		return nil
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(f.Path)
 	if err != nil {
 		return err
 	}
