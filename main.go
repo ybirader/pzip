@@ -17,6 +17,7 @@ type Archiver struct {
 	filesToProcess  chan File
 	filesToWrite    chan File
 	numberOfWorkers int
+	fileProcessPool *FileProcessPool
 }
 
 type File struct {
@@ -25,11 +26,23 @@ type File struct {
 }
 
 func NewArchiver(archive *os.File) *Archiver {
-	return &Archiver{Dest: archive, w: zip.NewWriter(archive), numberOfWorkers: runtime.GOMAXPROCS(0)}
+	a := &Archiver{Dest: archive,
+		w:               zip.NewWriter(archive),
+		numberOfWorkers: runtime.GOMAXPROCS(0),
+	}
+
+	executor := func(file File) {
+		a.filesToWrite <- file
+	}
+
+	fileProcessPool, _ := NewFileProcessPool(a.numberOfWorkers, executor)
+	a.fileProcessPool = fileProcessPool
+
+	return a
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
-	err := a.walkDir(root)
+	err := a.newWalkDir(root)
 
 	if err != nil {
 		return err
@@ -88,12 +101,38 @@ func (f *FileProcessPool) Enqueue(file File) {
 	f.tasks <- file
 }
 
-// Process files i.e.
+func (a *Archiver) newWalkDir(root string) error {
+	a.filesToWrite = make(chan File)
+	a.fileProcessPool.Start()
 
-// channel to put them on i.e. filesToProcess
-// number of workers that listen for tasks
-// enqueue tasks
-// close pool i.e. exit
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go a.writeFiles(wg)
+
+	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == root {
+			return nil
+		}
+
+		f := File{Path: path, Info: info}
+		a.fileProcessPool.Enqueue(f)
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	a.fileProcessPool.Close()
+	close(a.filesToWrite)
+	wg.Wait()
+
+	return nil
+}
 
 func (a *Archiver) walkDir(root string) error {
 	a.initializeChannels()
