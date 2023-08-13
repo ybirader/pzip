@@ -14,7 +14,6 @@ import (
 type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
-	filesToProcess  chan File
 	filesToWrite    chan File
 	numberOfWorkers int
 	fileProcessPool *FileProcessPool
@@ -42,7 +41,7 @@ func NewArchiver(archive *os.File) *Archiver {
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
-	err := a.newWalkDir(root)
+	err := a.walkDir(root)
 
 	if err != nil {
 		return err
@@ -106,7 +105,7 @@ func (f *FileProcessPool) reset() {
 	f.tasks = make(chan File)
 }
 
-func (a *Archiver) newWalkDir(root string) error {
+func (a *Archiver) walkDir(root string) error {
 	a.filesToWrite = make(chan File)
 	a.fileProcessPool.Start()
 
@@ -139,62 +138,14 @@ func (a *Archiver) newWalkDir(root string) error {
 	return nil
 }
 
-func (a *Archiver) walkDir(root string) error {
-	a.initializeChannels()
-
-	wg := new(sync.WaitGroup)
-	wg.Add(a.numberOfWorkers)
-	awg := new(sync.WaitGroup)
-
-	for i := 0; i < a.numberOfWorkers; i++ {
-		go a.processFiles(wg)
-	}
-
-	awg.Add(1)
-	go a.writeFiles(awg)
-
-	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if path == root {
-			return nil
-		}
-
-		f := File{Path: path, Info: info}
-
-		a.filesToProcess <- f
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	close(a.filesToProcess)
-	wg.Wait()
-	close(a.filesToWrite)
-
-	awg.Wait()
-
-	return nil
-}
-
 func (a *Archiver) ArchiveFiles(files ...string) error {
-	a.initializeChannels()
+	a.filesToWrite = make(chan File)
+	a.fileProcessPool.Start()
 
 	wg := new(sync.WaitGroup)
-	wg.Add(a.numberOfWorkers)
-	awg := new(sync.WaitGroup)
 
-	for i := 0; i < a.numberOfWorkers; i++ {
-		go a.processFiles(wg)
-	}
-
-	awg.Add(1)
-	go a.writeFiles(awg)
+	wg.Add(1)
+	go a.writeFiles(wg)
 
 	for _, path := range files {
 		info, err := os.Lstat(path)
@@ -203,14 +154,13 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 		}
 
 		f := File{Path: path, Info: info}
-		a.filesToProcess <- f
+		a.fileProcessPool.Enqueue(f)
 	}
 
-	close(a.filesToProcess)
-	wg.Wait()
+	a.fileProcessPool.Close()
 	close(a.filesToWrite)
 
-	awg.Wait()
+	wg.Wait()
 
 	return nil
 }
@@ -222,19 +172,6 @@ func (a *Archiver) Close() error {
 	}
 
 	return nil
-}
-
-func (a *Archiver) initializeChannels() {
-	a.filesToProcess = make(chan File)
-	a.filesToWrite = make(chan File)
-}
-
-func (a *Archiver) processFiles(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	for file := range a.filesToProcess {
-		a.filesToWrite <- file
-	}
 }
 
 func (a *Archiver) writeFiles(wg *sync.WaitGroup) {
