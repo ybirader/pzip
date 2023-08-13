@@ -3,7 +3,9 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"testing"
@@ -193,4 +195,15 @@ func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
 	}
 
 	return *new(T), false
+}
+
+const DefaultCompression = -1
+
+func compressToBuffer(buf *bytes.Buffer, path string) {
+	file, _ := os.Open(path)
+	defer file.Close()
+
+	compressor, _ := flate.NewWriter(buf, DefaultCompression)
+	io.Copy(compressor, file)
+	compressor.Close()
 }

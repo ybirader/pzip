@@ -2,18 +2,18 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/klauspost/compress/flate"
+	"runtime"
+	"sync"
 )
 
 type Archiver struct {
-	Dest *os.File
-	w    *zip.Writer
+	Dest            *os.File
+	w               *zip.Writer
+	numberOfWorkers int
 }
 
 type File struct {
@@ -22,7 +22,7 @@ type File struct {
 }
 
 func NewArchiver(archive *os.File) *Archiver {
-	return &Archiver{Dest: archive, w: zip.NewWriter(archive)}
+	return &Archiver{Dest: archive, w: zip.NewWriter(archive), numberOfWorkers: runtime.GOMAXPROCS(0)}
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
@@ -36,6 +36,20 @@ func (a *Archiver) ArchiveDir(root string) error {
 }
 
 func (a *Archiver) walkDir(root string) error {
+	filesToProcess := make(chan File)
+	filesToWrite := make(chan File)
+	wg := new(sync.WaitGroup)
+	wg.Add(a.numberOfWorkers)
+
+	awg := new(sync.WaitGroup)
+
+	for i := 0; i < a.numberOfWorkers; i++ {
+		go a.processFiles(filesToProcess, filesToWrite, wg)
+	}
+
+	awg.Add(1)
+	go a.writeFiles(filesToWrite, awg)
+
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -47,10 +61,7 @@ func (a *Archiver) walkDir(root string) error {
 
 		f := File{Path: path, Info: info}
 
-		err = a.archive(&f)
-		if err != nil {
-			return err
-		}
+		filesToProcess <- f
 
 		return nil
 	})
@@ -59,10 +70,30 @@ func (a *Archiver) walkDir(root string) error {
 		return err
 	}
 
+	close(filesToProcess)
+	wg.Wait()
+	close(filesToWrite)
+
+	awg.Wait()
+
 	return nil
 }
 
 func (a *Archiver) ArchiveFiles(files ...string) error {
+	filesToProcess := make(chan File)
+	filesToWrite := make(chan File)
+	wg := new(sync.WaitGroup)
+	wg.Add(a.numberOfWorkers)
+
+	awg := new(sync.WaitGroup)
+
+	for i := 0; i < a.numberOfWorkers; i++ {
+		go a.processFiles(filesToProcess, filesToWrite, wg)
+	}
+
+	awg.Add(1)
+	go a.writeFiles(filesToWrite, awg)
+
 	for _, path := range files {
 		info, err := os.Lstat(path)
 		if err != nil {
@@ -70,11 +101,14 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 		}
 
 		f := File{Path: path, Info: info}
-		err = a.archive(&f)
-		if err != nil {
-			return err
-		}
+		filesToProcess <- f
 	}
+
+	close(filesToProcess)
+	wg.Wait()
+	close(filesToWrite)
+
+	awg.Wait()
 
 	return nil
 }
@@ -86,6 +120,22 @@ func (a *Archiver) Close() error {
 	}
 
 	return nil
+}
+
+func (a *Archiver) processFiles(filesToProcess <-chan File, filesToWrite chan<- File, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for file := range filesToProcess {
+		filesToWrite <- file
+	}
+}
+
+func (a *Archiver) writeFiles(filesToWrite <-chan File, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for file := range filesToWrite {
+		a.archive(&file)
+	}
 }
 
 func (a *Archiver) archive(f *File) error {
@@ -142,17 +192,6 @@ func (a *Archiver) writeContents(w io.Writer, r io.Reader) error {
 	}
 
 	return nil
-}
-
-const DefaultCompression = -1
-
-func compressToBuffer(buf *bytes.Buffer, path string) {
-	file, _ := os.Open(path)
-	defer file.Close()
-
-	compressor, _ := flate.NewWriter(buf, DefaultCompression)
-	io.Copy(compressor, file)
-	compressor.Close()
 }
 
 func main() {
