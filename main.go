@@ -37,6 +37,22 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
+type FileProcessPool struct {
+	Tasks chan File
+}
+
+func (f *FileProcessPool) Enqueue(file File) {
+	f.Tasks <- file
+
+}
+
+// Process files i.e.
+
+// channel to put them on i.e. filesToProcess
+// number of workers that listen for tasks
+// enqueue tasks
+// close pool i.e. exit
+
 func (a *Archiver) walkDir(root string) error {
 	a.initializeChannels()
 

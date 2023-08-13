@@ -122,6 +122,24 @@ func TestCompressToBuffer(t *testing.T) {
 	})
 }
 
+// Process files i.e.
+
+// channel to put them on i.e. filesToProcess
+// number of workers that listen for tasks
+// enqueue tasks
+// close pool i.e. exit
+
+func TestFileProcessPool(t *testing.T) {
+	t.Run("can enqueue tasks", func(t *testing.T) {
+		fileProcessPool := &FileProcessPool{Tasks: make(chan File, 1)}
+
+		info := getFileInfo(t, helloTxtFileFixture)
+		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
+
+		assert.Equal(t, 1, len(fileProcessPool.Tasks))
+	})
+}
+
 func BenchmarkArchive(b *testing.B) {
 	archive, cleanup := createTempArchive(b, archivePath)
 	defer cleanup()
