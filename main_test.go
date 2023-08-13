@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -147,7 +146,7 @@ func TestFileProcessPool(t *testing.T) {
 			output.WriteString("hello, world!")
 		}
 
-		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor, wg: new(sync.WaitGroup), numberOfWorkers: 1}
+		fileProcessPool := NewFileProcessPool(1, executor)
 		fileProcessPool.Start()
 
 		info := getFileInfo(t, helloTxtFileFixture)

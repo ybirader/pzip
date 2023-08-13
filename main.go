@@ -44,6 +44,15 @@ type FileProcessPool struct {
 	numberOfWorkers int
 }
 
+func NewFileProcessPool(numberOfWorkers int, executor func(f File)) *FileProcessPool {
+	return &FileProcessPool{
+		tasks:           make(chan File),
+		executor:        executor,
+		wg:              new(sync.WaitGroup),
+		numberOfWorkers: numberOfWorkers,
+	}
+}
+
 func (f *FileProcessPool) Start() {
 	f.wg.Add(f.numberOfWorkers)
 	for i := 0; i < f.numberOfWorkers; i++ {
