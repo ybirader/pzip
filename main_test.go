@@ -147,7 +147,7 @@ func TestFileProcessPool(t *testing.T) {
 			output.WriteString("hello, world!")
 		}
 
-		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor, wg: new(sync.WaitGroup)}
+		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor, wg: new(sync.WaitGroup), numberOfWorkers: 1}
 		fileProcessPool.Start()
 
 		info := getFileInfo(t, helloTxtFileFixture)
