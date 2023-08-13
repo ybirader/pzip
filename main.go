@@ -15,8 +15,8 @@ type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
 	numberOfWorkers int
-	fileProcessPool *FileProcessPool
-	fileWriterPool  *FileProcessPool
+	fileProcessPool *FileWorkerPool
+	fileWriterPool  *FileWorkerPool
 }
 
 type File struct {
@@ -59,19 +59,19 @@ func (a *Archiver) ArchiveDir(root string) error {
 
 const minNumberOfWorkers = 1
 
-type FileProcessPool struct {
+type FileWorkerPool struct {
 	tasks           chan File
 	executor        func(f File)
 	wg              *sync.WaitGroup
 	numberOfWorkers int
 }
 
-func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileProcessPool, error) {
+func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileWorkerPool, error) {
 	if numberOfWorkers < minNumberOfWorkers {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
-	return &FileProcessPool{
+	return &FileWorkerPool{
 		tasks:           make(chan File),
 		executor:        executor,
 		wg:              new(sync.WaitGroup),
@@ -79,7 +79,7 @@ func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileProces
 	}, nil
 }
 
-func (f *FileProcessPool) Start() {
+func (f *FileWorkerPool) Start() {
 	f.reset()
 	f.wg.Add(f.numberOfWorkers)
 	for i := 0; i < f.numberOfWorkers; i++ {
@@ -87,12 +87,12 @@ func (f *FileProcessPool) Start() {
 	}
 }
 
-func (f *FileProcessPool) Close() {
+func (f *FileWorkerPool) Close() {
 	close(f.tasks)
 	f.wg.Wait()
 }
 
-func (f *FileProcessPool) listen() {
+func (f *FileWorkerPool) listen() {
 	defer f.wg.Done()
 
 	for file := range f.tasks {
@@ -100,15 +100,15 @@ func (f *FileProcessPool) listen() {
 	}
 }
 
-func (f FileProcessPool) PendingFiles() int {
+func (f FileWorkerPool) PendingFiles() int {
 	return len(f.tasks)
 }
 
-func (f *FileProcessPool) Enqueue(file File) {
+func (f *FileWorkerPool) Enqueue(file File) {
 	f.tasks <- file
 }
 
-func (f *FileProcessPool) reset() {
+func (f *FileWorkerPool) reset() {
 	f.tasks = make(chan File)
 }
 

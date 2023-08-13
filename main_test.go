@@ -122,9 +122,9 @@ func TestCompressToBuffer(t *testing.T) {
 	})
 }
 
-func TestFileProcessPool(t *testing.T) {
+func TestFileWorkerPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool := &FileProcessPool{tasks: make(chan File, 1)}
+		fileProcessPool := &FileWorkerPool{tasks: make(chan File, 1)}
 
 		info := getFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
