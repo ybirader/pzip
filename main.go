@@ -74,6 +74,7 @@ func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileProces
 }
 
 func (f *FileProcessPool) Start() {
+	f.reset()
 	f.wg.Add(f.numberOfWorkers)
 	for i := 0; i < f.numberOfWorkers; i++ {
 		go f.listen()
@@ -99,6 +100,10 @@ func (f FileProcessPool) PendingFiles() int {
 
 func (f *FileProcessPool) Enqueue(file File) {
 	f.tasks <- file
+}
+
+func (f *FileProcessPool) reset() {
+	f.tasks = make(chan File)
 }
 
 func (a *Archiver) newWalkDir(root string) error {

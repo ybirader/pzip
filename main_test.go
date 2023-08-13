@@ -158,6 +158,30 @@ func TestFileProcessPool(t *testing.T) {
 		_, err := NewFileProcessPool(0, executor)
 		assert.Error(t, err)
 	})
+
+	t.Run("can be closed and restarted", func(t *testing.T) {
+		output := bytes.Buffer{}
+		executor := func(_ File) {
+			output.WriteString("hello ")
+		}
+
+		fileProcessPool, err := NewFileProcessPool(1, executor)
+		assert.NoError(t, err)
+		fileProcessPool.Start()
+
+		info := getFileInfo(t, helloTxtFileFixture)
+		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
+
+		fileProcessPool.Close()
+
+		fileProcessPool.Start()
+		info = getFileInfo(t, helloTxtFileFixture)
+		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
+
+		fileProcessPool.Close()
+
+		assert.Equal(t, "hello hello ", output.String())
+	})
 }
 
 func BenchmarkArchive(b *testing.B) {
