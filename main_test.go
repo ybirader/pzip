@@ -3,9 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"compress/flate"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"testing"
@@ -119,11 +117,16 @@ func TestArchive(t *testing.T) {
 }
 
 func TestCompressToBuffer(t *testing.T) {
-	t.Run("deflate compresses file to buffer", func(t *testing.T) {
-		buf := bytes.Buffer{}
-		compressToBuffer(&buf, helloTxtFileFixture)
+	t.Run("compresses file to buffer using default deflate compression", func(t *testing.T) {
+		info := getFileInfo(t, helloTxtFileFixture)
+		file := File{Path: helloTxtFileFixture, Info: info}
 
-		assert.True(t, buf.Len() != 0)
+		buf := bytes.Buffer{}
+		compressToBuffer(&buf, file)
+
+		want := []byte{0, 14, 0, 241, 255, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 3, 0}
+
+		assert.Equal(t, want, buf.Bytes())
 	})
 }
 
@@ -263,15 +266,4 @@ func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
 	}
 
 	return *new(T), false
-}
-
-const DefaultCompression = -1
-
-func compressToBuffer(buf *bytes.Buffer, path string) {
-	file, _ := os.Open(path)
-	defer file.Close()
-
-	compressor, _ := flate.NewWriter(buf, DefaultCompression)
-	io.Copy(compressor, file)
-	compressor.Close()
 }
