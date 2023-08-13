@@ -131,12 +131,24 @@ func TestCompressToBuffer(t *testing.T) {
 
 func TestFileProcessPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool := &FileProcessPool{Tasks: make(chan File, 1)}
+		fileProcessPool := &FileProcessPool{tasks: make(chan File, 1)}
 
 		info := getFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
 
-		assert.Equal(t, 1, len(fileProcessPool.Tasks))
+		assert.Equal(t, 1, fileProcessPool.PendingFiles())
+	})
+
+	t.Run("can have workers process files", func(t *testing.T) {
+		fileProcessPool := &FileProcessPool{tasks: make(chan File)}
+		fileProcessPool.Start()
+
+		info := getFileInfo(t, helloTxtFileFixture)
+		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
+
+		// time.Sleep(5 * time.Millisecond)
+
+		assert.Equal(t, 0, fileProcessPool.PendingFiles())
 	})
 }
 

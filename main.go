@@ -38,12 +38,26 @@ func (a *Archiver) ArchiveDir(root string) error {
 }
 
 type FileProcessPool struct {
-	Tasks chan File
+	tasks chan File
+}
+
+func (f *FileProcessPool) Start() {
+	for i := 0; i < 1; i++ {
+		go f.processFiles()
+	}
+}
+
+func (f *FileProcessPool) processFiles() {
+	for range f.tasks {
+	}
+}
+
+func (f FileProcessPool) PendingFiles() int {
+	return len(f.tasks)
 }
 
 func (f *FileProcessPool) Enqueue(file File) {
-	f.Tasks <- file
-
+	f.tasks <- file
 }
 
 // Process files i.e.
