@@ -122,13 +122,6 @@ func TestCompressToBuffer(t *testing.T) {
 	})
 }
 
-// Process files i.e.
-
-// channel to put them on i.e. filesToProcess
-// number of workers that listen for tasks
-// enqueue tasks
-// close pool i.e. exit
-
 func TestFileProcessPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
 		fileProcessPool := &FileProcessPool{tasks: make(chan File, 1)}
@@ -139,14 +132,15 @@ func TestFileProcessPool(t *testing.T) {
 		assert.Equal(t, 1, fileProcessPool.PendingFiles())
 	})
 
-	t.Run("can have workers process files to completion", func(t *testing.T) {
+	t.Run("has workers process files to completion", func(t *testing.T) {
 		output := bytes.Buffer{}
 		executor := func(_ File) {
 			time.Sleep(5 * time.Millisecond)
 			output.WriteString("hello, world!")
 		}
 
-		fileProcessPool := NewFileProcessPool(1, executor)
+		fileProcessPool, err := NewFileProcessPool(1, executor)
+		assert.NoError(t, err)
 		fileProcessPool.Start()
 
 		info := getFileInfo(t, helloTxtFileFixture)
@@ -156,6 +150,13 @@ func TestFileProcessPool(t *testing.T) {
 
 		assert.Equal(t, 0, fileProcessPool.PendingFiles())
 		assert.Equal(t, "hello, world!", output.String())
+	})
+
+	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
+		executor := func(_ File) {
+		}
+		_, err := NewFileProcessPool(0, executor)
+		assert.Error(t, err)
 	})
 }
 

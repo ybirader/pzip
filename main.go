@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -37,6 +38,8 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
+const minNumberOfWorkers = 1
+
 type FileProcessPool struct {
 	tasks           chan File
 	executor        func(f File)
@@ -44,13 +47,17 @@ type FileProcessPool struct {
 	numberOfWorkers int
 }
 
-func NewFileProcessPool(numberOfWorkers int, executor func(f File)) *FileProcessPool {
+func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileProcessPool, error) {
+	if numberOfWorkers < minNumberOfWorkers {
+		return nil, errors.New("number of workers must be greater than 0")
+	}
+
 	return &FileProcessPool{
 		tasks:           make(chan File),
 		executor:        executor,
 		wg:              new(sync.WaitGroup),
 		numberOfWorkers: numberOfWorkers,
-	}
+	}, nil
 }
 
 func (f *FileProcessPool) Start() {
