@@ -40,15 +40,24 @@ func (a *Archiver) ArchiveDir(root string) error {
 type FileProcessPool struct {
 	tasks    chan File
 	executor func(f File)
+	wg       *sync.WaitGroup
 }
 
 func (f *FileProcessPool) Start() {
 	for i := 0; i < 1; i++ {
+		f.wg.Add(1)
 		go f.listen()
 	}
 }
 
+func (f *FileProcessPool) Close() {
+	close(f.tasks)
+	f.wg.Wait()
+}
+
 func (f *FileProcessPool) listen() {
+	defer f.wg.Done()
+
 	for file := range f.tasks {
 		f.executor(file)
 	}

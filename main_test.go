@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -139,17 +140,23 @@ func TestFileProcessPool(t *testing.T) {
 		assert.Equal(t, 1, fileProcessPool.PendingFiles())
 	})
 
-	t.Run("can have workers process files", func(t *testing.T) {
+	t.Run("can have workers process files to completion", func(t *testing.T) {
+		output := bytes.Buffer{}
 		executor := func(_ File) {
+			time.Sleep(5 * time.Millisecond)
+			output.WriteString("hello, world!")
 		}
 
-		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor}
+		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor, wg: new(sync.WaitGroup)}
 		fileProcessPool.Start()
 
 		info := getFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
 
+		fileProcessPool.Close()
+
 		assert.Equal(t, 0, fileProcessPool.PendingFiles())
+		assert.Equal(t, "hello, world!", output.String())
 	})
 }
 
