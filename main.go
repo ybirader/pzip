@@ -38,17 +38,19 @@ func (a *Archiver) ArchiveDir(root string) error {
 }
 
 type FileProcessPool struct {
-	tasks chan File
+	tasks    chan File
+	executor func(f File)
 }
 
 func (f *FileProcessPool) Start() {
 	for i := 0; i < 1; i++ {
-		go f.processFiles()
+		go f.listen()
 	}
 }
 
-func (f *FileProcessPool) processFiles() {
-	for range f.tasks {
+func (f *FileProcessPool) listen() {
+	for file := range f.tasks {
+		f.executor(file)
 	}
 }
 

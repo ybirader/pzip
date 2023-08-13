@@ -140,13 +140,14 @@ func TestFileProcessPool(t *testing.T) {
 	})
 
 	t.Run("can have workers process files", func(t *testing.T) {
-		fileProcessPool := &FileProcessPool{tasks: make(chan File)}
+		executor := func(_ File) {
+		}
+
+		fileProcessPool := &FileProcessPool{tasks: make(chan File), executor: executor}
 		fileProcessPool.Start()
 
 		info := getFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
-
-		// time.Sleep(5 * time.Millisecond)
 
 		assert.Equal(t, 0, fileProcessPool.PendingFiles())
 	})
