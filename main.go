@@ -295,6 +295,7 @@ func (a *Archiver) constructHeader(file *File) error {
 			return err
 		}
 	}
+	header.Method = zip.Deflate
 	file.Header = header
 	return nil
 }

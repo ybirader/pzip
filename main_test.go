@@ -137,66 +137,87 @@ func TestCompressToBuffer(t *testing.T) {
 }
 
 func TestFileWriter(t *testing.T) {
-	t.Run("constructs zip file header for a single compressed file where path to file is absolute", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
-		defer cleanup()
+	t.Run("writes correct header", func(t *testing.T) {
+		t.Run("constructs zip file header for a single compressed file where path to file is absolute", func(t *testing.T) {
+			archive, cleanup := createTempArchive(t, archivePath)
+			defer cleanup()
 
-		archiver, err := NewArchiver(archive)
-		assert.NoError(t, err)
+			archiver, err := NewArchiver(archive)
+			assert.NoError(t, err)
 
-		info := getFileInfo(t, helloTxtFileFixture)
+			info := getFileInfo(t, helloTxtFileFixture)
 
-		absPath, err := filepath.Abs(helloTxtFileFixture)
-		assert.NoError(t, err)
-		file := File{Path: absPath, Info: info}
+			absPath, err := filepath.Abs(helloTxtFileFixture)
+			assert.NoError(t, err)
+			file := File{Path: absPath, Info: info}
 
-		archiver.constructHeader(&file)
+			archiver.constructHeader(&file)
 
-		want := &zip.FileHeader{
-			Name: "hello.txt",
-		}
+			want := &zip.FileHeader{
+				Name: "hello.txt",
+			}
 
-		assert.Equal(t, want.Name, file.Header.Name)
-	})
+			assert.Equal(t, want.Name, file.Header.Name)
+		})
 
-	t.Run("constructs zip file header for a single compressed file where path to file is relative", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
-		defer cleanup()
+		t.Run("constructs zip file header for a single compressed file where path to file is relative", func(t *testing.T) {
+			archive, cleanup := createTempArchive(t, archivePath)
+			defer cleanup()
 
-		archiver, err := NewArchiver(archive)
-		assert.NoError(t, err)
+			archiver, err := NewArchiver(archive)
+			assert.NoError(t, err)
 
-		info := getFileInfo(t, helloTxtFileFixture)
-		file := File{Path: helloTxtFileFixture, Info: info}
+			info := getFileInfo(t, helloTxtFileFixture)
+			file := File{Path: helloTxtFileFixture, Info: info}
 
-		archiver.constructHeader(&file)
+			archiver.constructHeader(&file)
 
-		want := &zip.FileHeader{
-			Name: "hello.txt",
-		}
+			want := &zip.FileHeader{
+				Name: "hello.txt",
+			}
 
-		assert.Equal(t, want.Name, file.Header.Name)
-	})
+			assert.Equal(t, want.Name, file.Header.Name)
+		})
 
-	t.Run("constructs a zip file header of file where path to root directory is absolute", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
-		defer cleanup()
+		t.Run("constructs a zip file header of file where path to root directory is absolute", func(t *testing.T) {
+			archive, cleanup := createTempArchive(t, archivePath)
+			defer cleanup()
 
-		archiver, err := NewArchiver(archive)
-		assert.NoError(t, err)
+			archiver, err := NewArchiver(archive)
+			assert.NoError(t, err)
 
-		archiver.setRootDir(helloDirectoryFixture)
+			archiver.setRootDir(helloDirectoryFixture)
 
-		info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
-		file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
+			info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
+			file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
 
-		archiver.constructHeader(&file)
+			archiver.constructHeader(&file)
 
-		want := &zip.FileHeader{
-			Name: "nested/hello.md",
-		}
+			want := &zip.FileHeader{
+				Name: "nested/hello.md",
+			}
 
-		assert.Equal(t, want.Name, file.Header.Name)
+			assert.Equal(t, want.Name, file.Header.Name)
+		})
+
+		t.Run("sets correct method header", func(t *testing.T) {
+			archive, cleanup := createTempArchive(t, archivePath)
+			defer cleanup()
+
+			archiver, err := NewArchiver(archive)
+			assert.NoError(t, err)
+
+			archiver.setRootDir(helloDirectoryFixture)
+
+			info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
+			file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
+
+			archiver.constructHeader(&file)
+
+			want := zip.Deflate
+
+			assert.Equal(t, want, file.Header.Method)
+		})
 	})
 }
 
