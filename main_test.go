@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -132,6 +133,70 @@ func TestCompressToBuffer(t *testing.T) {
 		want := []byte{0, 14, 0, 241, 255, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 3, 0}
 
 		assert.Equal(t, want, buf.Bytes())
+	})
+}
+
+func TestFileWriter(t *testing.T) {
+	t.Run("constructs zip file header for a single compressed file where path to file is absolute", func(t *testing.T) {
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+
+		info := getFileInfo(t, helloTxtFileFixture)
+
+		absPath, err := filepath.Abs(helloTxtFileFixture)
+		assert.NoError(t, err)
+		file := File{Path: absPath, Info: info}
+
+		archiver.constructHeader(&file)
+
+		want := &zip.FileHeader{
+			Name: "hello.txt",
+		}
+
+		assert.Equal(t, want.Name, file.Header.Name)
+	})
+
+	t.Run("constructs zip file header for a single compressed file where path to file is relative", func(t *testing.T) {
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+
+		info := getFileInfo(t, helloTxtFileFixture)
+		file := File{Path: helloTxtFileFixture, Info: info}
+
+		archiver.constructHeader(&file)
+
+		want := &zip.FileHeader{
+			Name: "hello.txt",
+		}
+
+		assert.Equal(t, want.Name, file.Header.Name)
+	})
+
+	t.Run("constructs a zip file header of file where path to root directory is absolute", func(t *testing.T) {
+		archive, cleanup := createTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+
+		archiver.setRootDir(helloDirectoryFixture)
+
+		info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
+		file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
+
+		archiver.constructHeader(&file)
+
+		want := &zip.FileHeader{
+			Name: "nested/hello.md",
+		}
+
+		assert.Equal(t, want.Name, file.Header.Name)
 	})
 }
 

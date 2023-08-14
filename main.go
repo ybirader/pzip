@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/klauspost/compress/flate"
 )
@@ -20,12 +21,14 @@ type Archiver struct {
 	numberOfWorkers int
 	fileProcessPool *FileWorkerPool
 	fileWriterPool  *FileWorkerPool
+	root            string
 }
 
 type File struct {
 	Path           string
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
+	Header         *zip.FileHeader
 }
 
 func NewArchiver(archive *os.File) (*Archiver, error) {
@@ -58,9 +61,23 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	return a, nil
 }
 
-func (a *Archiver) ArchiveDir(root string) error {
-	err := a.walkDir(root)
+func (a *Archiver) setRootDir(root string) error {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
 
+	a.root = absRoot
+	return nil
+}
+
+func (a *Archiver) ArchiveDir(root string) error {
+	err := a.setRootDir(root)
+	if err != nil {
+		return err
+	}
+
+	err = a.walkDir()
 	if err != nil {
 		return err
 	}
@@ -123,16 +140,16 @@ func (f *FileWorkerPool) reset() {
 	f.tasks = make(chan File)
 }
 
-func (a *Archiver) walkDir(root string) error {
+func (a *Archiver) walkDir() error {
 	a.fileProcessPool.Start()
 	a.fileWriterPool.Start()
 
-	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(a.root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if path == root {
+		if path == a.root {
 			return nil
 		}
 
@@ -264,6 +281,103 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
 	}
 
 	return nil
+}
+
+func (a *Archiver) constructHeader(file *File) error {
+	header, err := zip.FileInfoHeader(file.Info)
+	if err != nil {
+		return err
+	}
+
+	if a.dirArchive() {
+		header.Name, err = filepath.Rel(a.root, file.Path)
+		if err != nil {
+			return err
+		}
+	}
+	file.Header = header
+	return nil
+}
+
+func (a *Archiver) dirArchive() bool {
+	return a.root != ""
+}
+
+type FileHeader struct {
+	// Name is the name of the file.
+	//
+	// It must be a relative path, not start with a drive letter (such as "C:"),
+	// and must use forward slashes instead of back slashes. A trailing slash
+	// indicates that this file is a directory and should have no data.
+	Name string
+
+	// Comment is any arbitrary user-defined string shorter than 64KiB.
+	Comment string
+
+	// NonUTF8 indicates that Name and Comment are not encoded in UTF-8.
+	//
+	// By specification, the only other encoding permitted should be CP-437,
+	// but historically many ZIP readers interpret Name and Comment as whatever
+	// the system's local character encoding happens to be.
+	//
+	// This flag should only be set if the user intends to encode a non-portable
+	// ZIP file for a specific localized region. Otherwise, the Writer
+	// automatically sets the ZIP format's UTF-8 flag for valid UTF-8 strings.
+	NonUTF8 bool
+
+	CreatorVersion uint16
+	ReaderVersion  uint16
+	Flags          uint16
+
+	// Method is the compression method. If zero, Store is used.
+	Method uint16
+
+	// Modified is the modified time of the file.
+	//
+	// When reading, an extended timestamp is preferred over the legacy MS-DOS
+	// date field, and the offset between the times is used as the timezone.
+	// If only the MS-DOS date is present, the timezone is assumed to be UTC.
+	//
+	// When writing, an extended timestamp (which is timezone-agnostic) is
+	// always emitted. The legacy MS-DOS date field is encoded according to the
+	// location of the Modified time.
+	Modified time.Time
+
+	// ModifiedTime is an MS-DOS-encoded time.
+	//
+	// Deprecated: Use Modified instead.
+	ModifiedTime uint16
+
+	// ModifiedDate is an MS-DOS-encoded date.
+	//
+	// Deprecated: Use Modified instead.
+	ModifiedDate uint16
+
+	// CRC32 is the CRC32 checksum of the file content.
+	CRC32 uint32
+
+	// CompressedSize is the compressed size of the file in bytes.
+	// If either the uncompressed or compressed size of the file
+	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	//
+	// Deprecated: Use CompressedSize64 instead.
+	CompressedSize uint32
+
+	// UncompressedSize is the compressed size of the file in bytes.
+	// If either the uncompressed or compressed size of the file
+	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	//
+	// Deprecated: Use UncompressedSize64 instead.
+	UncompressedSize uint32
+
+	// CompressedSize64 is the compressed size of the file in bytes.
+	CompressedSize64 uint64
+
+	// UncompressedSize64 is the uncompressed size of the file in bytes.
+	UncompressedSize64 uint64
+
+	Extra         []byte
+	ExternalAttrs uint32 // Meaning depends on CreatorVersion
 }
 
 func main() {
