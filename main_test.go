@@ -138,7 +138,7 @@ func TestCompressToBuffer(t *testing.T) {
 
 func TestFileWriter(t *testing.T) {
 	t.Run("writes correct header", func(t *testing.T) {
-		t.Run("constructs zip file header for a single compressed file where path to file is absolute", func(t *testing.T) {
+		t.Run("with file name relative to archive root when file path is absolute", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -153,14 +153,10 @@ func TestFileWriter(t *testing.T) {
 
 			archiver.constructHeader(&file)
 
-			want := &zip.FileHeader{
-				Name: "hello.txt",
-			}
-
-			assert.Equal(t, want.Name, file.Header.Name)
+			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
 
-		t.Run("constructs zip file header for a single compressed file where path to file is relative", func(t *testing.T) {
+		t.Run("with file name relative to archive root when file path is relative", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -172,51 +168,43 @@ func TestFileWriter(t *testing.T) {
 
 			archiver.constructHeader(&file)
 
-			want := &zip.FileHeader{
-				Name: "hello.txt",
-			}
-
-			assert.Equal(t, want.Name, file.Header.Name)
+			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
 
-		t.Run("constructs a zip file header of file where path to root directory is absolute", func(t *testing.T) {
+		t.Run("with file names relative to archive root for directories", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			archiver.setRootDir(helloDirectoryFixture)
+			archiver.changeRoot(helloDirectoryFixture)
+			filePath := "nested/hello.md"
 
-			info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
-			file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
+			info := getFileInfo(t, filepath.Join(archiver.chroot, filePath))
+			file := File{Path: filePath, Info: info}
 
 			archiver.constructHeader(&file)
 
-			want := &zip.FileHeader{
-				Name: "nested/hello.md",
-			}
-
-			assert.Equal(t, want.Name, file.Header.Name)
+			assert.Equal(t, "nested/hello.md", file.Header.Name)
 		})
 
-		t.Run("sets correct method header", func(t *testing.T) {
+		t.Run("with deflate method and correct uncompressed size, mod time and mode", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			archiver.setRootDir(helloDirectoryFixture)
-
-			info := getFileInfo(t, filepath.Join(archiver.root, "/nested/hello.md"))
-			file := File{Path: filepath.Join(archiver.root, "/nested/hello.md"), Info: info}
+			info := getFileInfo(t, helloTxtFileFixture)
+			file := File{Path: helloTxtFileFixture, Info: info}
 
 			archiver.constructHeader(&file)
 
-			want := zip.Deflate
-
-			assert.Equal(t, want, file.Header.Method)
+			assert.Equal(t, zip.Deflate, file.Header.Method)
+			assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
+			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
+			assert.Equal(t, info.Mode(), file.Header.Mode())
 		})
 	})
 }

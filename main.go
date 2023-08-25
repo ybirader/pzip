@@ -21,7 +21,7 @@ type Archiver struct {
 	numberOfWorkers int
 	fileProcessPool *FileWorkerPool
 	fileWriterPool  *FileWorkerPool
-	root            string
+	chroot          string
 }
 
 type File struct {
@@ -61,18 +61,18 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	return a, nil
 }
 
-func (a *Archiver) setRootDir(root string) error {
+func (a *Archiver) changeRoot(root string) error {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return err
 	}
 
-	a.root = absRoot
+	a.chroot = absRoot
 	return nil
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
-	err := a.setRootDir(root)
+	err := a.changeRoot(root)
 	if err != nil {
 		return err
 	}
@@ -144,16 +144,21 @@ func (a *Archiver) walkDir() error {
 	a.fileProcessPool.Start()
 	a.fileWriterPool.Start()
 
-	err := filepath.Walk(a.root, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(a.chroot, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if path == a.root {
+		if path == a.chroot {
 			return nil
 		}
 
-		f := File{Path: path, Info: info}
+		relativeToRoot, err := filepath.Rel(a.chroot, path)
+		if err != nil {
+			return err
+		}
+
+		f := File{Path: relativeToRoot, Info: info}
 		a.fileProcessPool.Enqueue(f)
 		return nil
 	})
@@ -290,18 +295,17 @@ func (a *Archiver) constructHeader(file *File) error {
 	}
 
 	if a.dirArchive() {
-		header.Name, err = filepath.Rel(a.root, file.Path)
-		if err != nil {
-			return err
-		}
+		header.Name = file.Path
 	}
+
 	header.Method = zip.Deflate
 	file.Header = header
+
 	return nil
 }
 
 func (a *Archiver) dirArchive() bool {
-	return a.root != ""
+	return a.chroot != ""
 }
 
 type FileHeader struct {
