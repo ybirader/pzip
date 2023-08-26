@@ -1,4 +1,4 @@
-package main
+package pzip
 
 import (
 	"archive/zip"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/assert/v2"
+	filebuffer "github.com/pzip/file_buffer"
 )
 
 const (
@@ -126,7 +127,7 @@ func TestCompressToBuffer(t *testing.T) {
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
 		info := getFileInfo(t, helloTxtFileFixture)
-		file := File{Path: helloTxtFileFixture, Info: info}
+		file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 
 		buf := bytes.Buffer{}
 		archiver.compressToBuffer(&buf, &file)
@@ -150,7 +151,7 @@ func TestFileWriter(t *testing.T) {
 
 			absPath, err := filepath.Abs(helloTxtFileFixture)
 			assert.NoError(t, err)
-			file := File{Path: absPath, Info: info}
+			file := filebuffer.File{Path: absPath, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -165,7 +166,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := getFileInfo(t, helloTxtFileFixture)
-			file := File{Path: helloTxtFileFixture, Info: info}
+			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -183,7 +184,7 @@ func TestFileWriter(t *testing.T) {
 			filePath := "nested/hello.md"
 
 			info := getFileInfo(t, filepath.Join(archiver.chroot, filePath))
-			file := File{Path: filePath, Info: info}
+			file := filebuffer.File{Path: filePath, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -198,7 +199,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := getFileInfo(t, helloTxtFileFixture)
-			file := File{Path: helloTxtFileFixture, Info: info}
+			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 			archiver.compress(&file)
 
 			archiver.createHeader(&file)
@@ -222,7 +223,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := getFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
-			file := File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
+			file := filebuffer.File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
 
 			archiver.createHeader(&file)
 
@@ -239,68 +240,6 @@ func assertExtendedTimestamp(t testing.TB, hdr *zip.FileHeader) {
 	binary.LittleEndian.PutUint16(want, extendedTimestampTag)
 	got := hdr.Extra[:2]
 	assert.Equal(t, want, got, "expected header to contain extended timestamp")
-}
-
-func TestFileWorkerPool(t *testing.T) {
-	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool := &FileWorkerPool{tasks: make(chan File, 1)}
-
-		info := getFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
-
-		assert.Equal(t, 1, fileProcessPool.PendingFiles())
-	})
-
-	t.Run("has workers process files to completion", func(t *testing.T) {
-		output := bytes.Buffer{}
-		executor := func(_ File) {
-			time.Sleep(5 * time.Millisecond)
-			output.WriteString("hello, world!")
-		}
-
-		fileProcessPool, err := NewFileProcessPool(1, executor)
-		assert.NoError(t, err)
-		fileProcessPool.Start()
-
-		info := getFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
-
-		fileProcessPool.Close()
-
-		assert.Equal(t, 0, fileProcessPool.PendingFiles())
-		assert.Equal(t, "hello, world!", output.String())
-	})
-
-	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
-		executor := func(_ File) {
-		}
-		_, err := NewFileProcessPool(0, executor)
-		assert.Error(t, err)
-	})
-
-	t.Run("can be closed and restarted", func(t *testing.T) {
-		output := bytes.Buffer{}
-		executor := func(_ File) {
-			output.WriteString("hello ")
-		}
-
-		fileProcessPool, err := NewFileProcessPool(1, executor)
-		assert.NoError(t, err)
-		fileProcessPool.Start()
-
-		info := getFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
-
-		fileProcessPool.Close()
-
-		fileProcessPool.Start()
-		info = getFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(File{Path: helloTxtFileFixture, Info: info})
-
-		fileProcessPool.Close()
-
-		assert.Equal(t, "hello hello ", output.String())
-	})
 }
 
 func BenchmarkArchive(b *testing.B) {

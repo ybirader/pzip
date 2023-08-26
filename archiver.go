@@ -1,37 +1,33 @@
-package main
+package pzip
 
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/binary"
 	"hash/crc32"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
-	"time"
 	"unicode/utf8"
 
 	"github.com/klauspost/compress/flate"
 	"github.com/pkg/errors"
+	filebuffer "github.com/pzip/file_buffer"
+)
+
+const (
+	defaultCompression = -1
+	zipVersion20       = 20
 )
 
 type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
 	numberOfWorkers int
-	fileProcessPool *FileWorkerPool
-	fileWriterPool  *FileWorkerPool
+	fileProcessPool WorkerPool[filebuffer.File]
+	fileWriterPool  WorkerPool[filebuffer.File]
 	chroot          string
-}
-
-type File struct {
-	Path           string
-	Info           fs.FileInfo
-	CompressedData bytes.Buffer
-	Header         *zip.FileHeader
 }
 
 func NewArchiver(archive *os.File) (*Archiver, error) {
@@ -40,7 +36,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		numberOfWorkers: runtime.GOMAXPROCS(0),
 	}
 
-	fileProcessExecutor := func(file File) {
+	fileProcessExecutor := func(file filebuffer.File) {
 		if !file.Info.IsDir() {
 			a.compress(&file)
 		}
@@ -56,7 +52,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 	a.fileProcessPool = fileProcessPool
 
-	fileWriterExecutor := func(file File) {
+	fileWriterExecutor := func(file filebuffer.File) {
 		a.archive(&file)
 	}
 
@@ -67,16 +63,6 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	a.fileWriterPool = fileWriterPool
 
 	return a, nil
-}
-
-func (a *Archiver) changeRoot(root string) error {
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return errors.Errorf("ERROR: could not determine absolute path of %s", root)
-	}
-
-	a.chroot = absRoot
-	return nil
 }
 
 func (a *Archiver) ArchiveDir(root string) error {
@@ -93,59 +79,43 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-const minNumberOfWorkers = 1
+func (a *Archiver) ArchiveFiles(files ...string) error {
+	a.fileProcessPool.Start()
+	a.fileWriterPool.Start()
 
-type FileWorkerPool struct {
-	tasks           chan File
-	executor        func(f File)
-	wg              *sync.WaitGroup
-	numberOfWorkers int
-}
+	for _, path := range files {
+		info, err := os.Lstat(path)
+		if err != nil {
+			return errors.Errorf("ERROR: could not get stat of %s", path)
+		}
 
-func NewFileProcessPool(numberOfWorkers int, executor func(f File)) (*FileWorkerPool, error) {
-	if numberOfWorkers < minNumberOfWorkers {
-		return nil, errors.New("number of workers must be greater than 0")
+		f := filebuffer.File{Path: path, Info: info}
+		a.fileProcessPool.Enqueue(f)
 	}
 
-	return &FileWorkerPool{
-		tasks:           make(chan File),
-		executor:        executor,
-		wg:              new(sync.WaitGroup),
-		numberOfWorkers: numberOfWorkers,
-	}, nil
+	a.fileProcessPool.Close()
+	a.fileWriterPool.Close()
+
+	return nil
 }
 
-func (f *FileWorkerPool) Start() {
-	f.reset()
-	f.wg.Add(f.numberOfWorkers)
-	for i := 0; i < f.numberOfWorkers; i++ {
-		go f.listen()
+func (a *Archiver) Close() error {
+	err := a.w.Close()
+	if err != nil {
+		return errors.New("ERROR: could not close archiver")
 	}
+
+	return nil
 }
 
-func (f *FileWorkerPool) Close() {
-	close(f.tasks)
-	f.wg.Wait()
-}
-
-func (f *FileWorkerPool) listen() {
-	defer f.wg.Done()
-
-	for file := range f.tasks {
-		f.executor(file)
+func (a *Archiver) changeRoot(root string) error {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return errors.Errorf("ERROR: could not determine absolute path of %s", root)
 	}
-}
 
-func (f FileWorkerPool) PendingFiles() int {
-	return len(f.tasks)
-}
-
-func (f *FileWorkerPool) Enqueue(file File) {
-	f.tasks <- file
-}
-
-func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan File)
+	a.chroot = absRoot
+	return nil
 }
 
 func (a *Archiver) walkDir() error {
@@ -166,7 +136,7 @@ func (a *Archiver) walkDir() error {
 			return errors.Errorf("ERROR: could not determine relative path of %s", path)
 		}
 
-		f := File{Path: relativeToRoot, Info: info}
+		f := filebuffer.File{Path: relativeToRoot, Info: info}
 		a.fileProcessPool.Enqueue(f)
 		return nil
 	})
@@ -181,53 +151,7 @@ func (a *Archiver) walkDir() error {
 	return nil
 }
 
-func (a *Archiver) ArchiveFiles(files ...string) error {
-	a.fileProcessPool.Start()
-	a.fileWriterPool.Start()
-
-	for _, path := range files {
-		info, err := os.Lstat(path)
-		if err != nil {
-			return errors.Errorf("ERROR: could not get stat of %s", path)
-		}
-
-		f := File{Path: path, Info: info}
-		a.fileProcessPool.Enqueue(f)
-	}
-
-	a.fileProcessPool.Close()
-	a.fileWriterPool.Close()
-
-	return nil
-}
-
-func (a *Archiver) Close() error {
-	err := a.w.Close()
-	if err != nil {
-		return errors.New("ERROR: could not close archiver")
-	}
-
-	return nil
-}
-
-func (a *Archiver) archive(f *File) error {
-	fileWriter, err := a.w.CreateRaw(f.Header)
-	if err != nil {
-		return errors.Errorf("ERROR: could not write raw header for %s", f.Path)
-	}
-
-	_, err = io.Copy(fileWriter, &f.CompressedData)
-
-	if err != nil {
-		return errors.Errorf("ERROR: could not write content for %s", f.Path)
-	}
-
-	return nil
-}
-
-const DefaultCompression = -1
-
-func (a *Archiver) compress(file *File) error {
+func (a *Archiver) compress(file *filebuffer.File) error {
 	buf := bytes.Buffer{}
 	err := a.compressToBuffer(&buf, file)
 	if err != nil {
@@ -237,12 +161,12 @@ func (a *Archiver) compress(file *File) error {
 	return nil
 }
 
-func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
+func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *filebuffer.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
 	}
-	compressor, err := flate.NewWriter(buf, DefaultCompression)
+	compressor, err := flate.NewWriter(buf, defaultCompression)
 	if err != nil {
 		return err
 	}
@@ -264,10 +188,7 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
 	return nil
 }
 
-const zipVersion20 = 20
-const extendedTimestampTag = 0x5455
-
-func (a *Archiver) createHeader(file *File) error {
+func (a *Archiver) createHeader(file *filebuffer.File) error {
 	header, err := zip.FileInfoHeader(file.Info)
 	if err != nil {
 		return errors.Errorf("ERROR: could not create file header for %s", file.Path)
@@ -314,23 +235,23 @@ func (a *Archiver) createHeader(file *File) error {
 	return nil
 }
 
-type ExtendedTimestampExtraField struct {
-	modified time.Time
+func (a *Archiver) dirArchive() bool {
+	return a.chroot != ""
 }
 
-func NewExtendedTimestampExtraField(modified time.Time) *ExtendedTimestampExtraField {
-	return &ExtendedTimestampExtraField{
-		modified,
+func (a *Archiver) archive(f *filebuffer.File) error {
+	fileWriter, err := a.w.CreateRaw(f.Header)
+	if err != nil {
+		return errors.Errorf("ERROR: could not write raw header for %s", f.Path)
 	}
-}
 
-func (e *ExtendedTimestampExtraField) Encode() []byte {
-	extraBuf := make([]byte, 0, 9) // 2*SizeOf(uint16) + SizeOf(uint) + SizeOf(uint32)
-	extraBuf = binary.LittleEndian.AppendUint16(extraBuf, extendedTimestampTag)
-	extraBuf = binary.LittleEndian.AppendUint16(extraBuf, 5) // block size
-	extraBuf = append(extraBuf, uint8(1))                    // flags
-	extraBuf = binary.LittleEndian.AppendUint32(extraBuf, uint32(e.modified.Unix()))
-	return extraBuf
+	_, err = io.Copy(fileWriter, &f.CompressedData)
+
+	if err != nil {
+		return errors.Errorf("ERROR: could not write content for %s", f.Path)
+	}
+
+	return nil
 }
 
 // https://cs.opensource.google/go/go/+/refs/tags/go1.21.0:src/archive/zip/writer.go
@@ -347,11 +268,4 @@ func detectUTF8(s string) (valid, require bool) {
 		}
 	}
 	return true, require
-}
-
-func (a *Archiver) dirArchive() bool {
-	return a.chroot != ""
-}
-
-func main() {
 }
