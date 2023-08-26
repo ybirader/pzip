@@ -152,7 +152,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 			file := File{Path: absPath, Info: info}
 
-			archiver.constructHeader(&file)
+			archiver.createHeader(&file)
 
 			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
@@ -167,7 +167,7 @@ func TestFileWriter(t *testing.T) {
 			info := getFileInfo(t, helloTxtFileFixture)
 			file := File{Path: helloTxtFileFixture, Info: info}
 
-			archiver.constructHeader(&file)
+			archiver.createHeader(&file)
 
 			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
@@ -185,12 +185,12 @@ func TestFileWriter(t *testing.T) {
 			info := getFileInfo(t, filepath.Join(archiver.chroot, filePath))
 			file := File{Path: filePath, Info: info}
 
-			archiver.constructHeader(&file)
+			archiver.createHeader(&file)
 
 			assert.Equal(t, "nested/hello.md", file.Header.Name)
 		})
 
-		t.Run("with deflate method and correct uncompressed size, mod time, mode, and extended timestamp for files", func(t *testing.T) {
+		t.Run("with deflate method and correct mod time, mode, data descriptor and extended timestamp for files", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -199,17 +199,22 @@ func TestFileWriter(t *testing.T) {
 
 			info := getFileInfo(t, helloTxtFileFixture)
 			file := File{Path: helloTxtFileFixture, Info: info}
+			archiver.compress(&file)
 
-			archiver.constructHeader(&file)
+			archiver.createHeader(&file)
 
 			assert.Equal(t, zip.Deflate, file.Header.Method)
-			assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
 			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
 			assert.Equal(t, info.Mode(), file.Header.Mode())
+
+			assert.NotZero(t, file.Header.CRC32)
+			assert.Equal(t, uint64(file.CompressedData.Len()), file.Header.CompressedSize64)
+			assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
+
 			assertExtendedTimestamp(t, file.Header)
 		})
 
-		t.Run("with no compression or content for directories", func(t *testing.T) {
+		t.Run("with no data descriptor directories", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -219,10 +224,12 @@ func TestFileWriter(t *testing.T) {
 			info := getFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
 			file := File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
 
-			archiver.constructHeader(&file)
+			archiver.createHeader(&file)
 
 			assert.Equal(t, zip.Store, file.Header.Method)
-
+			assert.Zero(t, file.Header.CRC32)
+			assert.Equal(t, 0, file.Header.CompressedSize64)
+			assert.Equal(t, 0, file.Header.UncompressedSize64)
 		})
 	})
 }

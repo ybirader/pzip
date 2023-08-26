@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"hash/crc32"
 	"io"
 	"io/fs"
 	"os"
@@ -40,7 +41,12 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 
 	fileProcessExecutor := func(file File) {
-		a.compress(&file)
+		if !file.Info.IsDir() {
+			a.compress(&file)
+		}
+
+		a.createHeader(&file)
+
 		a.fileWriterPool.Enqueue(file)
 	}
 
@@ -293,7 +299,7 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
 const zipVersion20 = 20
 const extendedTimestampTag = 0x5455
 
-func (a *Archiver) constructHeader(file *File) error {
+func (a *Archiver) createHeader(file *File) error {
 	header, err := zip.FileInfoHeader(file.Info)
 	if err != nil {
 		return err
@@ -302,8 +308,6 @@ func (a *Archiver) constructHeader(file *File) error {
 	if a.dirArchive() {
 		header.Name = file.Path
 	}
-
-	header.Method = zip.Deflate
 
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
 	utf8ValidComment, utf8RequireComment := detectUTF8(header.Comment)
@@ -328,6 +332,13 @@ func (a *Archiver) constructHeader(file *File) error {
 
 	if file.Info.IsDir() {
 		header.Method = zip.Store
+		header.Flags &^= 0x8 // won't write data descriptor (crc32, comp, uncomp)
+		header.UncompressedSize64 = 0
+	} else {
+		header.Method = zip.Deflate
+		header.Flags |= 0x8 // will write data descriptor (crc32, comp, uncomp)
+		header.CRC32 = crc32.ChecksumIEEE(file.CompressedData.Bytes())
+		header.CompressedSize64 = uint64(file.CompressedData.Len())
 	}
 
 	file.Header = header
