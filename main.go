@@ -323,19 +323,31 @@ func (a *Archiver) constructHeader(file *File) error {
 	// https://libzip.org/specifications/extrafld.txt
 
 	if !header.Modified.IsZero() {
-		extraBuf := make([]byte, 0, 9) // 2*SizeOf(uint16) + SizeOf(uint) + SizeOf(uint32)
-
-		extraBuf = binary.LittleEndian.AppendUint16(extraBuf, extendedTimestampTag)
-		extraBuf = binary.LittleEndian.AppendUint16(extraBuf, 5) // block size
-		extraBuf = append(extraBuf, uint8(1))                    // flags
-		extraBuf = binary.LittleEndian.AppendUint32(extraBuf, uint32(header.Modified.Unix()))
-
-		header.Extra = append(header.Extra, extraBuf...)
+		header.Extra = append(header.Extra, NewExtendedTimestampExtraField(header.Modified).Encode()...)
 	}
 
 	file.Header = header
 
 	return nil
+}
+
+type ExtendedTimestampExtraField struct {
+	modified time.Time
+}
+
+func NewExtendedTimestampExtraField(modified time.Time) *ExtendedTimestampExtraField {
+	return &ExtendedTimestampExtraField{
+		modified,
+	}
+}
+
+func (e *ExtendedTimestampExtraField) Encode() []byte {
+	extraBuf := make([]byte, 0, 9) // 2*SizeOf(uint16) + SizeOf(uint) + SizeOf(uint32)
+	extraBuf = binary.LittleEndian.AppendUint16(extraBuf, extendedTimestampTag)
+	extraBuf = binary.LittleEndian.AppendUint16(extraBuf, 5) // block size
+	extraBuf = append(extraBuf, uint8(1))                    // flags
+	extraBuf = binary.LittleEndian.AppendUint32(extraBuf, uint32(e.modified.Unix()))
+	return extraBuf
 }
 
 // https://cs.opensource.google/go/go/+/refs/tags/go1.21.0:src/archive/zip/writer.go
