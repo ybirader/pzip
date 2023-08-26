@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/alecthomas/assert/v2 v2.3.0
 	github.com/klauspost/compress v1.16.7
+	github.com/pkg/errors v0.9.1
 )
 
 require (

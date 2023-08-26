@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"hash/crc32"
 	"io"
 	"io/fs"
@@ -16,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/klauspost/compress/flate"
+	"github.com/pkg/errors"
 )
 
 type Archiver struct {
@@ -52,7 +52,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 
 	fileProcessPool, err := NewFileProcessPool(a.numberOfWorkers, fileProcessExecutor)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
 	}
 	a.fileProcessPool = fileProcessPool
 
@@ -62,7 +62,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 
 	fileWriterPool, err := NewFileProcessPool(1, fileWriterExecutor)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "ERROR: could not create file writer pool")
 	}
 	a.fileWriterPool = fileWriterPool
 
@@ -72,7 +72,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 func (a *Archiver) changeRoot(root string) error {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not determine absolute path of %s", root)
 	}
 
 	a.chroot = absRoot
@@ -82,12 +82,12 @@ func (a *Archiver) changeRoot(root string) error {
 func (a *Archiver) ArchiveDir(root string) error {
 	err := a.changeRoot(root)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "ERROR: could not set chroot of archive to %s", root)
 	}
 
 	err = a.walkDir()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "ERROR: could not walk directory")
 	}
 
 	return nil
@@ -163,7 +163,7 @@ func (a *Archiver) walkDir() error {
 
 		relativeToRoot, err := filepath.Rel(a.chroot, path)
 		if err != nil {
-			return err
+			return errors.Errorf("ERROR: could not determine relative path of %s", path)
 		}
 
 		f := File{Path: relativeToRoot, Info: info}
@@ -172,7 +172,7 @@ func (a *Archiver) walkDir() error {
 	})
 
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not walk directory %s", a.chroot)
 	}
 
 	a.fileProcessPool.Close()
@@ -188,7 +188,7 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 	for _, path := range files {
 		info, err := os.Lstat(path)
 		if err != nil {
-			return err
+			return errors.Errorf("ERROR: could not get stat of %s", path)
 		}
 
 		f := File{Path: path, Info: info}
@@ -204,7 +204,7 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 func (a *Archiver) Close() error {
 	err := a.w.Close()
 	if err != nil {
-		return err
+		return errors.New("ERROR: could not close archiver")
 	}
 
 	return nil
@@ -213,13 +213,13 @@ func (a *Archiver) Close() error {
 func (a *Archiver) archive(f *File) error {
 	fileWriter, err := a.w.CreateRaw(f.Header)
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not write raw header for %s", f.Path)
 	}
 
 	_, err = io.Copy(fileWriter, &f.CompressedData)
 
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not write content for %s", f.Path)
 	}
 
 	return nil
@@ -231,7 +231,7 @@ func (a *Archiver) compress(file *File) error {
 	buf := bytes.Buffer{}
 	err := a.compressToBuffer(&buf, file)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "ERROR: could not compress to buffer %s", file.Path)
 	}
 	file.CompressedData = buf
 	return nil
@@ -240,16 +240,25 @@ func (a *Archiver) compress(file *File) error {
 func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not open file %s", file.Path)
 	}
 	compressor, err := flate.NewWriter(buf, DefaultCompression)
 	if err != nil {
 		return err
 	}
-	defer compressor.Close()
+
+	defer func() {
+		cErr := compressor.Close()
+		if cErr != nil {
+			err = cErr
+		}
+
+	}()
+
 	_, err = io.Copy(compressor, f)
+
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not compress file %s", file.Path)
 	}
 
 	return nil
@@ -261,7 +270,7 @@ const extendedTimestampTag = 0x5455
 func (a *Archiver) createHeader(file *File) error {
 	header, err := zip.FileInfoHeader(file.Info)
 	if err != nil {
-		return err
+		return errors.Errorf("ERROR: could not create file header for %s", file.Path)
 	}
 
 	if a.dirArchive() {
