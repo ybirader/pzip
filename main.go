@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"io/fs"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/klauspost/compress/flate"
 )
@@ -288,6 +290,9 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *File) error {
 	return nil
 }
 
+const zipVersion20 = 20
+const extendedTimestampTag = 0x5455
+
 func (a *Archiver) constructHeader(file *File) error {
 	header, err := zip.FileInfoHeader(file.Info)
 	if err != nil {
@@ -299,9 +304,54 @@ func (a *Archiver) constructHeader(file *File) error {
 	}
 
 	header.Method = zip.Deflate
+
+	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
+	utf8ValidComment, utf8RequireComment := detectUTF8(header.Comment)
+	switch {
+	case header.NonUTF8:
+		header.Flags &^= 0x800
+	case (utf8RequireName || utf8RequireComment) && (utf8ValidName && utf8ValidComment):
+		header.Flags |= 0x800
+	}
+
+	header.CreatorVersion = header.CreatorVersion&0xff00 | zipVersion20
+	header.ReaderVersion = zipVersion20
+
+	// we store local times in header.Modified- other zip readers expect this
+	// we set extended timestamp (UTC) info as an Extra for compatibility
+	// we only set mod time, not time of last access or time of original creation
+	// https://libzip.org/specifications/extrafld.txt
+
+	if !header.Modified.IsZero() {
+		extraBuf := make([]byte, 0, 9) // 2*SizeOf(uint16) + SizeOf(uint) + SizeOf(uint32)
+
+		extraBuf = binary.LittleEndian.AppendUint16(extraBuf, extendedTimestampTag)
+		extraBuf = binary.LittleEndian.AppendUint16(extraBuf, 5) // block size
+		extraBuf = append(extraBuf, uint8(1))                    // flags
+		extraBuf = binary.LittleEndian.AppendUint32(extraBuf, uint32(header.Modified.Unix()))
+
+		header.Extra = append(header.Extra, extraBuf...)
+	}
+
 	file.Header = header
 
 	return nil
+}
+
+// https://cs.opensource.google/go/go/+/refs/tags/go1.21.0:src/archive/zip/writer.go
+func detectUTF8(s string) (valid, require bool) {
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+
+		if r < 0x20 || r > 0x7d || r == 0x5c {
+			if !utf8.ValidRune(r) || (r == utf8.RuneError && size == 1) {
+				return false, false
+			}
+			require = true
+		}
+	}
+	return true, require
 }
 
 func (a *Archiver) dirArchive() bool {

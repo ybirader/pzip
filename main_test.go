@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io/fs"
 	"os"
@@ -189,7 +190,7 @@ func TestFileWriter(t *testing.T) {
 			assert.Equal(t, "nested/hello.md", file.Header.Name)
 		})
 
-		t.Run("with deflate method and correct uncompressed size, mod time and mode", func(t *testing.T) {
+		t.Run("with deflate method and correct uncompressed size, mod time, mode, and extended timestamp", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -205,8 +206,16 @@ func TestFileWriter(t *testing.T) {
 			assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
 			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
 			assert.Equal(t, info.Mode(), file.Header.Mode())
+			assertExtendedTimestamp(t, file.Header)
 		})
 	})
+}
+
+func assertExtendedTimestamp(t testing.TB, hdr *zip.FileHeader) {
+	want := make([]byte, 2)
+	binary.LittleEndian.PutUint16(want, extendedTimestampTag)
+	got := hdr.Extra[:2]
+	assert.Equal(t, want, got, "expected header to contain extended timestamp")
 }
 
 func TestFileWorkerPool(t *testing.T) {
