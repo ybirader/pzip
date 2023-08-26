@@ -190,7 +190,7 @@ func TestFileWriter(t *testing.T) {
 			assert.Equal(t, "nested/hello.md", file.Header.Name)
 		})
 
-		t.Run("with deflate method and correct uncompressed size, mod time, mode, and extended timestamp", func(t *testing.T) {
+		t.Run("with deflate method and correct uncompressed size, mod time, mode, and extended timestamp for files", func(t *testing.T) {
 			archive, cleanup := createTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -207,6 +207,22 @@ func TestFileWriter(t *testing.T) {
 			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
 			assert.Equal(t, info.Mode(), file.Header.Mode())
 			assertExtendedTimestamp(t, file.Header)
+		})
+
+		t.Run("with no compression or content for directories", func(t *testing.T) {
+			archive, cleanup := createTempArchive(t, archivePath)
+			defer cleanup()
+
+			archiver, err := NewArchiver(archive)
+			assert.NoError(t, err)
+
+			info := getFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
+			file := File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
+
+			archiver.constructHeader(&file)
+
+			assert.Equal(t, zip.Store, file.Header.Method)
+
 		})
 	})
 }

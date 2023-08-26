@@ -326,6 +326,10 @@ func (a *Archiver) constructHeader(file *File) error {
 		header.Extra = append(header.Extra, NewExtendedTimestampExtraField(header.Modified).Encode()...)
 	}
 
+	if file.Info.IsDir() {
+		header.Method = zip.Store
+	}
+
 	file.Header = header
 
 	return nil
