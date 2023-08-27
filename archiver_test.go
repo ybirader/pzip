@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/alecthomas/assert/v2"
-	filebuffer "github.com/pzip/file_buffer"
 	"github.com/pzip/internal/testutils"
+	"github.com/pzip/pool"
 )
 
 const (
@@ -126,7 +126,7 @@ func TestCompressToBuffer(t *testing.T) {
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
+		file := pool.File{Path: helloTxtFileFixture, Info: info}
 
 		buf := bytes.Buffer{}
 		archiver.compressToBuffer(&buf, &file)
@@ -150,7 +150,7 @@ func TestFileWriter(t *testing.T) {
 
 			absPath, err := filepath.Abs(helloTxtFileFixture)
 			assert.NoError(t, err)
-			file := filebuffer.File{Path: absPath, Info: info}
+			file := pool.File{Path: absPath, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -165,7 +165,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
+			file := pool.File{Path: helloTxtFileFixture, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -183,7 +183,7 @@ func TestFileWriter(t *testing.T) {
 			filePath := "nested/hello.md"
 
 			info := testutils.GetFileInfo(t, filepath.Join(archiver.chroot, filePath))
-			file := filebuffer.File{Path: filePath, Info: info}
+			file := pool.File{Path: filePath, Info: info}
 
 			archiver.createHeader(&file)
 
@@ -198,7 +198,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
+			file := pool.File{Path: helloTxtFileFixture, Info: info}
 			archiver.compress(&file)
 
 			archiver.createHeader(&file)
@@ -222,7 +222,7 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := testutils.GetFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
-			file := filebuffer.File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
+			file := pool.File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
 
 			archiver.createHeader(&file)
 

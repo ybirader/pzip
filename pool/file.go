@@ -1,4 +1,4 @@
-package filebuffer
+package pool
 
 import (
 	"archive/zip"

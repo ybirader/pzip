@@ -13,7 +13,6 @@ import (
 
 	"github.com/klauspost/compress/flate"
 	"github.com/pkg/errors"
-	filebuffer "github.com/pzip/file_buffer"
 	"github.com/pzip/pool"
 )
 
@@ -26,8 +25,8 @@ type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
 	numberOfWorkers int
-	fileProcessPool pool.WorkerPool[filebuffer.File]
-	fileWriterPool  pool.WorkerPool[filebuffer.File]
+	fileProcessPool pool.WorkerPool[pool.File]
+	fileWriterPool  pool.WorkerPool[pool.File]
 	chroot          string
 }
 
@@ -37,7 +36,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		numberOfWorkers: runtime.GOMAXPROCS(0),
 	}
 
-	fileProcessExecutor := func(file filebuffer.File) {
+	fileProcessExecutor := func(file pool.File) {
 		if !file.Info.IsDir() {
 			a.compress(&file)
 		}
@@ -53,7 +52,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 	a.fileProcessPool = fileProcessPool
 
-	fileWriterExecutor := func(file filebuffer.File) {
+	fileWriterExecutor := func(file pool.File) {
 		a.archive(&file)
 	}
 
@@ -90,7 +89,7 @@ func (a *Archiver) ArchiveFiles(files ...string) error {
 			return errors.Errorf("ERROR: could not get stat of %s", path)
 		}
 
-		f := filebuffer.File{Path: path, Info: info}
+		f := pool.File{Path: path, Info: info}
 		a.fileProcessPool.Enqueue(f)
 	}
 
@@ -137,7 +136,7 @@ func (a *Archiver) walkDir() error {
 			return errors.Errorf("ERROR: could not determine relative path of %s", path)
 		}
 
-		f := filebuffer.File{Path: relativeToRoot, Info: info}
+		f := pool.File{Path: relativeToRoot, Info: info}
 		a.fileProcessPool.Enqueue(f)
 		return nil
 	})
@@ -152,7 +151,7 @@ func (a *Archiver) walkDir() error {
 	return nil
 }
 
-func (a *Archiver) compress(file *filebuffer.File) error {
+func (a *Archiver) compress(file *pool.File) error {
 	buf := bytes.Buffer{}
 	err := a.compressToBuffer(&buf, file)
 	if err != nil {
@@ -162,7 +161,7 @@ func (a *Archiver) compress(file *filebuffer.File) error {
 	return nil
 }
 
-func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *filebuffer.File) error {
+func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
@@ -189,7 +188,7 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *filebuffer.File) er
 	return nil
 }
 
-func (a *Archiver) createHeader(file *filebuffer.File) error {
+func (a *Archiver) createHeader(file *pool.File) error {
 	header, err := zip.FileInfoHeader(file.Info)
 	if err != nil {
 		return errors.Errorf("ERROR: could not create file header for %s", file.Path)
@@ -240,7 +239,7 @@ func (a *Archiver) dirArchive() bool {
 	return a.chroot != ""
 }
 
-func (a *Archiver) archive(f *filebuffer.File) error {
+func (a *Archiver) archive(f *pool.File) error {
 	fileWriter, err := a.w.CreateRaw(f.Header)
 	if err != nil {
 		return errors.Errorf("ERROR: could not write raw header for %s", f.Path)

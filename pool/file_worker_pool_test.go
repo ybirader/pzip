@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/assert/v2"
-	filebuffer "github.com/pzip/file_buffer"
 	"github.com/pzip/internal/testutils"
 	"github.com/pzip/pool"
 )
@@ -21,18 +20,18 @@ const (
 
 func TestFileWorkerPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f filebuffer.File) {})
+		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f pool.File) {})
 		assert.NoError(t, err)
 
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
+		fileProcessPool.Enqueue(pool.File{Path: helloTxtFileFixture, Info: info})
 
 		assert.Equal(t, 1, fileProcessPool.PendingFiles())
 	})
 
 	t.Run("has workers process files to completion", func(t *testing.T) {
 		output := bytes.Buffer{}
-		executor := func(_ filebuffer.File) {
+		executor := func(_ pool.File) {
 			time.Sleep(5 * time.Millisecond)
 			output.WriteString("hello, world!")
 		}
@@ -42,7 +41,7 @@ func TestFileWorkerPool(t *testing.T) {
 		fileProcessPool.Start()
 
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
+		fileProcessPool.Enqueue(pool.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
 
@@ -51,7 +50,7 @@ func TestFileWorkerPool(t *testing.T) {
 	})
 
 	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
-		executor := func(_ filebuffer.File) {
+		executor := func(_ pool.File) {
 		}
 		_, err := pool.NewFileWorkerPool(0, executor)
 		assert.Error(t, err)
@@ -59,7 +58,7 @@ func TestFileWorkerPool(t *testing.T) {
 
 	t.Run("can be closed and restarted", func(t *testing.T) {
 		output := bytes.Buffer{}
-		executor := func(_ filebuffer.File) {
+		executor := func(_ pool.File) {
 			output.WriteString("hello ")
 		}
 
@@ -68,13 +67,13 @@ func TestFileWorkerPool(t *testing.T) {
 		fileProcessPool.Start()
 
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
+		fileProcessPool.Enqueue(pool.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
 
 		fileProcessPool.Start()
 		info = testutils.GetFileInfo(t, helloTxtFileFixture)
-		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
+		fileProcessPool.Enqueue(pool.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
 

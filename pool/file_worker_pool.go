@@ -3,8 +3,6 @@ package pool
 import (
 	"errors"
 	"sync"
-
-	filebuffer "github.com/pzip/file_buffer"
 )
 
 const (
@@ -13,19 +11,19 @@ const (
 )
 
 type FileWorkerPool struct {
-	tasks           chan filebuffer.File
-	executor        func(f filebuffer.File)
+	tasks           chan File
+	executor        func(f File)
 	wg              *sync.WaitGroup
 	numberOfWorkers int
 }
 
-func NewFileWorkerPool(numberOfWorkers int, executor func(f filebuffer.File)) (*FileWorkerPool, error) {
+func NewFileWorkerPool(numberOfWorkers int, executor func(f File)) (*FileWorkerPool, error) {
 	if numberOfWorkers < minNumberOfWorkers {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
 	return &FileWorkerPool{
-		tasks:           make(chan filebuffer.File, capacity),
+		tasks:           make(chan File, capacity),
 		executor:        executor,
 		wg:              new(sync.WaitGroup),
 		numberOfWorkers: numberOfWorkers,
@@ -57,10 +55,10 @@ func (f FileWorkerPool) PendingFiles() int {
 	return len(f.tasks)
 }
 
-func (f *FileWorkerPool) Enqueue(file filebuffer.File) {
+func (f *FileWorkerPool) Enqueue(file File) {
 	f.tasks <- file
 }
 
 func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan filebuffer.File)
+	f.tasks = make(chan File)
 }
