@@ -7,7 +7,10 @@ import (
 	filebuffer "github.com/pzip/file_buffer"
 )
 
-const minNumberOfWorkers = 1
+const (
+	minNumberOfWorkers = 1
+	capacity           = 1
+)
 
 type FileWorkerPool struct {
 	tasks           chan filebuffer.File
@@ -22,7 +25,7 @@ func NewFileWorkerPool(numberOfWorkers int, executor func(f filebuffer.File)) (*
 	}
 
 	return &FileWorkerPool{
-		tasks:           make(chan filebuffer.File, 1),
+		tasks:           make(chan filebuffer.File, capacity),
 		executor:        executor,
 		wg:              new(sync.WaitGroup),
 		numberOfWorkers: numberOfWorkers,

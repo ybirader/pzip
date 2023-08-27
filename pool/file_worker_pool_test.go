@@ -2,14 +2,12 @@ package pool_test
 
 import (
 	"bytes"
-	"fmt"
-	"io/fs"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/alecthomas/assert/v2"
 	filebuffer "github.com/pzip/file_buffer"
+	"github.com/pzip/internal/testutils"
 	"github.com/pzip/pool"
 )
 
@@ -26,7 +24,7 @@ func TestFileWorkerPool(t *testing.T) {
 		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f filebuffer.File) {})
 		assert.NoError(t, err)
 
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
 
 		assert.Equal(t, 1, fileProcessPool.PendingFiles())
@@ -43,7 +41,7 @@ func TestFileWorkerPool(t *testing.T) {
 		assert.NoError(t, err)
 		fileProcessPool.Start()
 
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
@@ -69,26 +67,17 @@ func TestFileWorkerPool(t *testing.T) {
 		assert.NoError(t, err)
 		fileProcessPool.Start()
 
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
 
 		fileProcessPool.Start()
-		info = getFileInfo(t, helloTxtFileFixture)
+		info = testutils.GetFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
 
 		fileProcessPool.Close()
 
 		assert.Equal(t, "hello hello ", output.String())
 	})
-}
-
-func getFileInfo(t testing.TB, name string) fs.FileInfo {
-	t.Helper()
-
-	info, err := os.Stat(name)
-	assert.NoError(t, err, fmt.Sprintf("could not get file into fot %s", name))
-
-	return info
 }

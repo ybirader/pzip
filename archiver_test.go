@@ -5,14 +5,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/alecthomas/assert/v2"
 	filebuffer "github.com/pzip/file_buffer"
+	"github.com/pzip/internal/testutils"
 )
 
 const (
@@ -25,7 +24,7 @@ const (
 
 func TestArchive(t *testing.T) {
 	t.Run("archives a single file with a name", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
@@ -33,13 +32,13 @@ func TestArchive(t *testing.T) {
 		archiver.ArchiveFiles(helloTxtFileFixture)
 		archiver.Close()
 
-		archiveReader := getArchiveReader(t, archive.Name())
+		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 1, len(archiveReader.File))
-		assertArchiveContainsFile(t, archiveReader.File, "hello.txt")
+		testutils.AssertArchiveContainsFile(t, archiveReader.File, "hello.txt")
 
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 
 		got := archiveReader.File[0].UncompressedSize64
 		want := uint64(info.Size())
@@ -48,7 +47,7 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("retains the last modified date of an archived file", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
@@ -56,12 +55,12 @@ func TestArchive(t *testing.T) {
 		archiver.ArchiveFiles(helloTxtFileFixture)
 		archiver.Close()
 
-		archiveReader := getArchiveReader(t, archive.Name())
+		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 
-		archivedFile, found := Find(archiveReader.File, func(file *zip.File) bool {
+		archivedFile, found := testutils.Find(archiveReader.File, func(file *zip.File) bool {
 			return file.Name == "hello.txt"
 		})
 		assert.True(t, found)
@@ -70,7 +69,7 @@ func TestArchive(t *testing.T) {
 	})
 
 	t.Run("archives two files", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
@@ -78,14 +77,14 @@ func TestArchive(t *testing.T) {
 		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
 		archiver.Close()
 
-		archiveReader := getArchiveReader(t, archive.Name())
+		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 2, len(archiveReader.File))
 	})
 
 	t.Run("archives a directory of files", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
@@ -94,14 +93,14 @@ func TestArchive(t *testing.T) {
 		assert.NoError(t, err)
 		archiver.Close()
 
-		archiveReader := getArchiveReader(t, archive.Name())
+		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 3, len(archiveReader.File))
 	})
 
 	t.Run("can archive files separately", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
@@ -112,7 +111,7 @@ func TestArchive(t *testing.T) {
 		assert.NoError(t, err)
 		archiver.Close()
 
-		archiveReader := getArchiveReader(t, archive.Name())
+		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
 		assert.Equal(t, 2, len(archiveReader.File))
@@ -121,12 +120,12 @@ func TestArchive(t *testing.T) {
 
 func TestCompressToBuffer(t *testing.T) {
 	t.Run("compresses file to buffer using default deflate compression", func(t *testing.T) {
-		archive, cleanup := createTempArchive(t, archivePath)
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		info := getFileInfo(t, helloTxtFileFixture)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 		file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 
 		buf := bytes.Buffer{}
@@ -141,13 +140,13 @@ func TestCompressToBuffer(t *testing.T) {
 func TestFileWriter(t *testing.T) {
 	t.Run("writes correct header", func(t *testing.T) {
 		t.Run("with file name relative to archive root when file path is absolute", func(t *testing.T) {
-			archive, cleanup := createTempArchive(t, archivePath)
+			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			info := getFileInfo(t, helloTxtFileFixture)
+			info := testutils.GetFileInfo(t, helloTxtFileFixture)
 
 			absPath, err := filepath.Abs(helloTxtFileFixture)
 			assert.NoError(t, err)
@@ -159,13 +158,13 @@ func TestFileWriter(t *testing.T) {
 		})
 
 		t.Run("with file name relative to archive root when file path is relative", func(t *testing.T) {
-			archive, cleanup := createTempArchive(t, archivePath)
+			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			info := getFileInfo(t, helloTxtFileFixture)
+			info := testutils.GetFileInfo(t, helloTxtFileFixture)
 			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 
 			archiver.createHeader(&file)
@@ -174,7 +173,7 @@ func TestFileWriter(t *testing.T) {
 		})
 
 		t.Run("with file names relative to archive root for directories", func(t *testing.T) {
-			archive, cleanup := createTempArchive(t, archivePath)
+			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
@@ -183,7 +182,7 @@ func TestFileWriter(t *testing.T) {
 			archiver.changeRoot(helloDirectoryFixture)
 			filePath := "nested/hello.md"
 
-			info := getFileInfo(t, filepath.Join(archiver.chroot, filePath))
+			info := testutils.GetFileInfo(t, filepath.Join(archiver.chroot, filePath))
 			file := filebuffer.File{Path: filePath, Info: info}
 
 			archiver.createHeader(&file)
@@ -192,13 +191,13 @@ func TestFileWriter(t *testing.T) {
 		})
 
 		t.Run("with deflate method and correct mod time, mode, data descriptor and extended timestamp for files", func(t *testing.T) {
-			archive, cleanup := createTempArchive(t, archivePath)
+			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			info := getFileInfo(t, helloTxtFileFixture)
+			info := testutils.GetFileInfo(t, helloTxtFileFixture)
 			file := filebuffer.File{Path: helloTxtFileFixture, Info: info}
 			archiver.compress(&file)
 
@@ -216,13 +215,13 @@ func TestFileWriter(t *testing.T) {
 		})
 
 		t.Run("with no data descriptor directories", func(t *testing.T) {
-			archive, cleanup := createTempArchive(t, archivePath)
+			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
 
-			info := getFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
+			info := testutils.GetFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
 			file := filebuffer.File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
 
 			archiver.createHeader(&file)
@@ -243,7 +242,7 @@ func assertExtendedTimestamp(t testing.TB, hdr *zip.FileHeader) {
 }
 
 func BenchmarkArchive(b *testing.B) {
-	archive, cleanup := createTempArchive(b, archivePath)
+	archive, cleanup := testutils.CreateTempArchive(b, archivePath)
 	defer cleanup()
 
 	archiver, err := NewArchiver(archive)
@@ -256,64 +255,10 @@ func BenchmarkArchive(b *testing.B) {
 	}
 }
 
-func createTempArchive(t testing.TB, name string) (*os.File, func()) {
-	t.Helper()
-
-	archive, err := os.Create(name)
-	assert.NoError(t, err, fmt.Sprintf("could not create archive %s: %v", name, err))
-
-	cleanup := func() {
-		archive.Close()
-		os.RemoveAll(archive.Name())
-	}
-
-	return archive, cleanup
-}
-
-func getArchiveReader(t testing.TB, name string) *zip.ReadCloser {
-	t.Helper()
-
-	reader, err := zip.OpenReader(name)
-	assert.NoError(t, err)
-
-	return reader
-}
-
-func assertArchiveContainsFile(t testing.TB, files []*zip.File, name string) {
-	t.Helper()
-
-	_, found := Find(files, func(f *zip.File) bool {
-		return f.Name == name
-	})
-
-	if !found {
-		t.Errorf("expected file %s to be in archive but wasn't", name)
-	}
-}
-
 func assertMatchingTimes(t testing.TB, t1, t2 time.Time) {
 	t.Helper()
 
 	assert.True(t,
 		t1.Year() == t2.Year() && t1.YearDay() == t2.YearDay() && t1.Second() == t2.Second(),
 		fmt.Sprintf("expected %+v to match %+v but didn't", t1, t2))
-}
-
-func getFileInfo(t testing.TB, name string) fs.FileInfo {
-	t.Helper()
-
-	info, err := os.Stat(name)
-	assert.NoError(t, err, fmt.Sprintf("could not get file into fot %s", name))
-
-	return info
-}
-
-func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
-	for _, e := range elements {
-		if cb(e) {
-			return e, true
-		}
-	}
-
-	return *new(T), false
 }
