@@ -1,17 +1,30 @@
-package pzip
+package pool_test
 
 import (
 	"bytes"
+	"fmt"
+	"io/fs"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/alecthomas/assert/v2"
 	filebuffer "github.com/pzip/file_buffer"
+	"github.com/pzip/pool"
+)
+
+const (
+	testdataRoot             = "../testdata/"
+	archivePath              = testdataRoot + "archive.zip"
+	helloTxtFileFixture      = testdataRoot + "hello.txt"
+	helloMarkdownFileFixture = testdataRoot + "hello.md"
+	helloDirectoryFixture    = testdataRoot + "hello/"
 )
 
 func TestFileWorkerPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool := &FileWorkerPool{tasks: make(chan filebuffer.File, 1)}
+		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f filebuffer.File) {})
+		assert.NoError(t, err)
 
 		info := getFileInfo(t, helloTxtFileFixture)
 		fileProcessPool.Enqueue(filebuffer.File{Path: helloTxtFileFixture, Info: info})
@@ -26,7 +39,7 @@ func TestFileWorkerPool(t *testing.T) {
 			output.WriteString("hello, world!")
 		}
 
-		fileProcessPool, err := NewFileProcessPool(1, executor)
+		fileProcessPool, err := pool.NewFileWorkerPool(1, executor)
 		assert.NoError(t, err)
 		fileProcessPool.Start()
 
@@ -42,7 +55,7 @@ func TestFileWorkerPool(t *testing.T) {
 	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
 		executor := func(_ filebuffer.File) {
 		}
-		_, err := NewFileProcessPool(0, executor)
+		_, err := pool.NewFileWorkerPool(0, executor)
 		assert.Error(t, err)
 	})
 
@@ -52,7 +65,7 @@ func TestFileWorkerPool(t *testing.T) {
 			output.WriteString("hello ")
 		}
 
-		fileProcessPool, err := NewFileProcessPool(1, executor)
+		fileProcessPool, err := pool.NewFileWorkerPool(1, executor)
 		assert.NoError(t, err)
 		fileProcessPool.Start()
 
@@ -69,4 +82,13 @@ func TestFileWorkerPool(t *testing.T) {
 
 		assert.Equal(t, "hello hello ", output.String())
 	})
+}
+
+func getFileInfo(t testing.TB, name string) fs.FileInfo {
+	t.Helper()
+
+	info, err := os.Stat(name)
+	assert.NoError(t, err, fmt.Sprintf("could not get file into fot %s", name))
+
+	return info
 }

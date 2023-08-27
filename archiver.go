@@ -14,6 +14,7 @@ import (
 	"github.com/klauspost/compress/flate"
 	"github.com/pkg/errors"
 	filebuffer "github.com/pzip/file_buffer"
+	"github.com/pzip/pool"
 )
 
 const (
@@ -25,8 +26,8 @@ type Archiver struct {
 	Dest            *os.File
 	w               *zip.Writer
 	numberOfWorkers int
-	fileProcessPool WorkerPool[filebuffer.File]
-	fileWriterPool  WorkerPool[filebuffer.File]
+	fileProcessPool pool.WorkerPool[filebuffer.File]
+	fileWriterPool  pool.WorkerPool[filebuffer.File]
 	chroot          string
 }
 
@@ -46,7 +47,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		a.fileWriterPool.Enqueue(file)
 	}
 
-	fileProcessPool, err := NewFileProcessPool(a.numberOfWorkers, fileProcessExecutor)
+	fileProcessPool, err := pool.NewFileWorkerPool(a.numberOfWorkers, fileProcessExecutor)
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
 	}
@@ -56,7 +57,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		a.archive(&file)
 	}
 
-	fileWriterPool, err := NewFileProcessPool(1, fileWriterExecutor)
+	fileWriterPool, err := pool.NewFileWorkerPool(1, fileWriterExecutor)
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file writer pool")
 	}
