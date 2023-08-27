@@ -2,6 +2,8 @@ package pzip
 
 import (
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 type CLI struct {
@@ -9,12 +11,23 @@ type CLI struct {
 	DirPath     string
 }
 
-func (c *CLI) Archive() {
-	archive, _ := os.Create(c.ArchivePath)
+func (c *CLI) Archive() error {
+	archive, err := os.Create(c.ArchivePath)
+	if err != nil {
+		return errors.Errorf("ERROR: could not create archive at %s", c.ArchivePath)
+	}
 	defer archive.Close()
 
-	archiver, _ := NewArchiver(archive)
+	archiver, err := NewArchiver(archive)
+	if err != nil {
+		return errors.Wrap(err, "ERROR: could not create archiver")
+	}
 	defer archiver.Close()
 
-	archiver.ArchiveDir(c.DirPath)
+	err = archiver.ArchiveDir(c.DirPath)
+	if err != nil {
+		return errors.Wrapf(err, "ERROR: could not archive directory %s", c.DirPath)
+	}
+
+	return nil
 }
