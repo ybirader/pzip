@@ -96,7 +96,7 @@ func TestArchive(t *testing.T) {
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
 		defer archiveReader.Close()
 
-		assert.Equal(t, 3, len(archiveReader.File))
+		assert.Equal(t, 4, len(archiveReader.File))
 	})
 
 	t.Run("can archive files separately", func(t *testing.T) {
@@ -214,7 +214,7 @@ func TestFileWriter(t *testing.T) {
 			assertExtendedTimestamp(t, file.Header)
 		})
 
-		t.Run("with no data descriptor directories", func(t *testing.T) {
+		t.Run("for directories", func(t *testing.T) {
 			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 			defer cleanup()
 
@@ -226,6 +226,7 @@ func TestFileWriter(t *testing.T) {
 
 			archiver.createHeader(&file)
 
+			assert.Equal(t, "nested/", file.Header.Name)
 			assert.Equal(t, zip.Store, file.Header.Method)
 			assert.Zero(t, file.Header.CRC32)
 			assert.Equal(t, 0, file.Header.CompressedSize64)

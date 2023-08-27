@@ -21,6 +21,6 @@ func TestCLI(t *testing.T) {
 		archiveReader := testutils.GetArchiveReader(t, archivePath)
 		defer archiveReader.Close()
 
-		assert.Equal(t, 3, len(archiveReader.File))
+		assert.Equal(t, 4, len(archiveReader.File))
 	})
 }

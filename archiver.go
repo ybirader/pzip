@@ -127,10 +127,6 @@ func (a *Archiver) walkDir() error {
 			return err
 		}
 
-		if path == a.chroot {
-			return nil
-		}
-
 		relativeToRoot, err := filepath.Rel(a.chroot, path)
 		if err != nil {
 			return errors.Errorf("ERROR: could not determine relative path of %s", path)
@@ -220,6 +216,7 @@ func (a *Archiver) createHeader(file *pool.File) error {
 	}
 
 	if file.Info.IsDir() {
+		header.Name += "/"
 		header.Method = zip.Store
 		header.Flags &^= 0x8 // won't write data descriptor (crc32, comp, uncomp)
 		header.UncompressedSize64 = 0
