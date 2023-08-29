@@ -7,6 +7,7 @@ import (
 )
 
 type File struct {
+	Name           string
 	Path           string
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer

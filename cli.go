@@ -8,7 +8,7 @@ import (
 
 type CLI struct {
 	ArchivePath string
-	DirPath     string
+	Files       []string
 }
 
 func (c *CLI) Archive() error {
@@ -24,9 +24,9 @@ func (c *CLI) Archive() error {
 	}
 	defer archiver.Close()
 
-	err = archiver.ArchiveDir(c.DirPath)
+	err = archiver.Archive(c.Files)
 	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not archive directory %s", c.DirPath)
+		return errors.Wrapf(err, "ERROR: could not archive files")
 	}
 
 	return nil

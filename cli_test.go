@@ -10,17 +10,17 @@ import (
 )
 
 func TestCLI(t *testing.T) {
-	t.Run("archives a directory", func(t *testing.T) {
-		dirPath := "testdata/hello"
+	t.Run("archives a directory and some files", func(t *testing.T) {
+		files := []string{"testdata/hello", "testdata/hello.md"}
 		archivePath := "testdata/archive.zip"
 		defer os.RemoveAll(archivePath)
 
-		cli := pzip.CLI{archivePath, dirPath}
+		cli := pzip.CLI{archivePath, files}
 		cli.Archive()
 
 		archiveReader := testutils.GetArchiveReader(t, archivePath)
 		defer archiveReader.Close()
 
-		assert.Equal(t, 4, len(archiveReader.File))
+		assert.Equal(t, 5, len(archiveReader.File))
 	})
 }

@@ -29,7 +29,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.ArchiveFiles(helloTxtFileFixture)
+		archiver.Archive([]string{helloTxtFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -52,7 +52,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.ArchiveFiles(helloTxtFileFixture)
+		archiver.Archive([]string{helloTxtFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -74,7 +74,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
+		archiver.Archive([]string{helloTxtFileFixture, helloMarkdownFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -89,7 +89,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		err = archiver.ArchiveDir(helloDirectoryFixture)
+		err = archiver.Archive([]string{helloDirectoryFixture})
 		assert.NoError(t, err)
 		archiver.Close()
 
@@ -105,9 +105,9 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		err = archiver.ArchiveFiles(helloTxtFileFixture)
+		err = archiver.Archive([]string{helloTxtFileFixture})
 		assert.NoError(t, err)
-		err = archiver.ArchiveFiles(helloMarkdownFileFixture)
+		err = archiver.Archive([]string{helloMarkdownFileFixture})
 		assert.NoError(t, err)
 		archiver.Close()
 
@@ -127,6 +127,8 @@ func TestCompressToBuffer(t *testing.T) {
 		assert.NoError(t, err)
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
 		file := pool.File{Path: helloTxtFileFixture, Info: info}
+		file.Header, err = zip.FileInfoHeader(file.Info)
+		assert.NoError(t, err)
 
 		buf := bytes.Buffer{}
 		archiver.compressToBuffer(&buf, &file)
@@ -151,6 +153,8 @@ func TestFileWriter(t *testing.T) {
 			absPath, err := filepath.Abs(helloTxtFileFixture)
 			assert.NoError(t, err)
 			file := pool.File{Path: absPath, Info: info}
+			file.Header, err = zip.FileInfoHeader(file.Info)
+			assert.NoError(t, err)
 
 			archiver.createHeader(&file)
 
@@ -166,6 +170,8 @@ func TestFileWriter(t *testing.T) {
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
 			file := pool.File{Path: helloTxtFileFixture, Info: info}
+			file.Header, err = zip.FileInfoHeader(file.Info)
+			assert.NoError(t, err)
 
 			archiver.createHeader(&file)
 
@@ -183,7 +189,9 @@ func TestFileWriter(t *testing.T) {
 			filePath := "nested/hello.md"
 
 			info := testutils.GetFileInfo(t, filepath.Join(archiver.chroot, filePath))
-			file := pool.File{Path: filePath, Info: info}
+			file := pool.File{Name: "nested/hello.md", Path: filePath, Info: info}
+			file.Header, err = zip.FileInfoHeader(file.Info)
+			assert.NoError(t, err)
 
 			archiver.createHeader(&file)
 
@@ -199,6 +207,8 @@ func TestFileWriter(t *testing.T) {
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
 			file := pool.File{Path: helloTxtFileFixture, Info: info}
+			file.Header, err = zip.FileInfoHeader(file.Info)
+			assert.NoError(t, err)
 			archiver.compress(&file)
 
 			archiver.createHeader(&file)
@@ -220,13 +230,16 @@ func TestFileWriter(t *testing.T) {
 
 			archiver, err := NewArchiver(archive)
 			assert.NoError(t, err)
+			archiver.changeRoot(helloDirectoryFixture)
 
 			info := testutils.GetFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
-			file := pool.File{Path: filepath.Join(helloDirectoryFixture, "/nested"), Info: info}
+			file := pool.File{Name: "hello/nested", Path: "hello/nested", Info: info}
+			file.Header, err = zip.FileInfoHeader(file.Info)
+			assert.NoError(t, err)
 
 			archiver.createHeader(&file)
 
-			assert.Equal(t, "nested/", file.Header.Name)
+			assert.Equal(t, "hello/nested/", file.Header.Name)
 			assert.Equal(t, zip.Store, file.Header.Method)
 			assert.Zero(t, file.Header.CRC32)
 			assert.Equal(t, 0, file.Header.CompressedSize64)
@@ -252,7 +265,7 @@ func BenchmarkArchive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		archiver.ArchiveFiles(helloTxtFileFixture, helloMarkdownFileFixture)
+		archiver.Archive([]string{helloTxtFileFixture, helloMarkdownFileFixture})
 	}
 }
 

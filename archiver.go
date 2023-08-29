@@ -37,6 +37,9 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 
 	fileProcessExecutor := func(file pool.File) {
+		hdr, _ := zip.FileInfoHeader(file.Info)
+		file.Header = hdr
+
 		if !file.Info.IsDir() {
 			a.compress(&file)
 		}
@@ -65,6 +68,34 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	return a, nil
 }
 
+func (a *Archiver) Archive(files []string) error {
+	a.fileProcessPool.Start()
+	a.fileWriterPool.Start()
+
+	for _, file := range files {
+		info, err := os.Lstat(file)
+		if err != nil {
+			return errors.Errorf("ERROR: could not get stat of %s: %v", file, err)
+		}
+
+		if info.IsDir() {
+			err = a.ArchiveDir(file)
+		} else {
+			f := pool.File{Path: file, Info: info}
+			a.ArchiveFile(f)
+		}
+
+		if err != nil {
+			return errors.Wrapf(err, "ERROR: could not archive %s", file)
+		}
+	}
+
+	a.fileProcessPool.Close()
+	a.fileWriterPool.Close()
+
+	return nil
+}
+
 func (a *Archiver) ArchiveDir(root string) error {
 	err := a.changeRoot(root)
 	if err != nil {
@@ -79,24 +110,8 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-func (a *Archiver) ArchiveFiles(files ...string) error {
-	a.fileProcessPool.Start()
-	a.fileWriterPool.Start()
-
-	for _, path := range files {
-		info, err := os.Lstat(path)
-		if err != nil {
-			return errors.Errorf("ERROR: could not get stat of %s", path)
-		}
-
-		f := pool.File{Path: path, Info: info}
-		a.fileProcessPool.Enqueue(f)
-	}
-
-	a.fileProcessPool.Close()
-	a.fileWriterPool.Close()
-
-	return nil
+func (a *Archiver) ArchiveFile(f pool.File) {
+	a.fileProcessPool.Enqueue(f)
 }
 
 func (a *Archiver) Close() error {
@@ -119,30 +134,27 @@ func (a *Archiver) changeRoot(root string) error {
 }
 
 func (a *Archiver) walkDir() error {
-	a.fileProcessPool.Start()
-	a.fileWriterPool.Start()
-
 	err := filepath.Walk(a.chroot, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		relativeToRoot, err := filepath.Rel(a.chroot, path)
+		relativeIncludingRoot := filepath.Join(filepath.Base(a.chroot), relativeToRoot)
+
 		if err != nil {
 			return errors.Errorf("ERROR: could not determine relative path of %s", path)
 		}
 
-		f := pool.File{Path: relativeToRoot, Info: info}
-		a.fileProcessPool.Enqueue(f)
+		f := pool.File{Name: relativeIncludingRoot, Path: path, Info: info}
+		a.ArchiveFile(f)
+
 		return nil
 	})
 
 	if err != nil {
 		return errors.Errorf("ERROR: could not walk directory %s", a.chroot)
 	}
-
-	a.fileProcessPool.Close()
-	a.fileWriterPool.Close()
 
 	return nil
 }
@@ -162,6 +174,7 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
 	}
+
 	compressor, err := flate.NewWriter(buf, defaultCompression)
 	if err != nil {
 		return err
@@ -172,10 +185,15 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
 		if cErr != nil {
 			err = cErr
 		}
-
 	}()
 
-	_, err = io.Copy(compressor, f)
+	hasher := crc32.NewIEEE()
+
+	writer := io.MultiWriter(compressor, hasher)
+
+	_, err = io.Copy(writer, f)
+
+	file.Header.CRC32 = hasher.Sum32()
 
 	if err != nil {
 		return errors.Errorf("ERROR: could not compress file %s", file.Path)
@@ -185,13 +203,10 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
 }
 
 func (a *Archiver) createHeader(file *pool.File) error {
-	header, err := zip.FileInfoHeader(file.Info)
-	if err != nil {
-		return errors.Errorf("ERROR: could not create file header for %s", file.Path)
-	}
+	header := file.Header
 
 	if a.dirArchive() {
-		header.Name = file.Path
+		header.Name = file.Name
 	}
 
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
@@ -223,7 +238,6 @@ func (a *Archiver) createHeader(file *pool.File) error {
 	} else {
 		header.Method = zip.Deflate
 		header.Flags |= 0x8 // will write data descriptor (crc32, comp, uncomp)
-		header.CRC32 = crc32.ChecksumIEEE(file.CompressedData.Bytes())
 		header.CompressedSize64 = uint64(file.CompressedData.Len())
 	}
 
