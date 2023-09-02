@@ -204,11 +204,10 @@ func (a *Archiver) populateHeader(file *pool.File) error {
 	header := file.Header
 
 	if a.dirArchive() {
-		relativeToRoot, err := a.relativeToChRoot(file.Path)
+		err := file.SetNameRelativeTo(a.chroot)
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not find path relative to directory root %s", file.Path)
+			return errors.Wrapf(err, "ERROR: could not set path relative to chroot %s", file.Path)
 		}
-		header.Name = relativeToRoot
 	}
 
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
@@ -252,25 +251,16 @@ func (a *Archiver) dirArchive() bool {
 	return a.chroot != ""
 }
 
-func (a *Archiver) relativeToChRoot(path string) (string, error) {
-	relativeToRoot, err := filepath.Rel(a.chroot, path)
+func (a *Archiver) archive(file *pool.File) error {
+	fileWriter, err := a.w.CreateRaw(file.Header)
 	if err != nil {
-		return "", errors.Errorf("ERROR: could not find relative path of %s to root %s", path, a.chroot)
+		return errors.Errorf("ERROR: could not write raw header for %s", file.Path)
 	}
 
-	return filepath.Join(filepath.Base(a.chroot), relativeToRoot), nil
-}
-
-func (a *Archiver) archive(f *pool.File) error {
-	fileWriter, err := a.w.CreateRaw(f.Header)
-	if err != nil {
-		return errors.Errorf("ERROR: could not write raw header for %s", f.Path)
-	}
-
-	_, err = io.Copy(fileWriter, &f.CompressedData)
+	_, err = io.Copy(fileWriter, &file.CompressedData)
 
 	if err != nil {
-		return errors.Errorf("ERROR: could not write content for %s", f.Path)
+		return errors.Errorf("ERROR: could not write content for %s", file.Path)
 	}
 
 	return nil
