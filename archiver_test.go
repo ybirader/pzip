@@ -126,8 +126,7 @@ func TestCompressToBuffer(t *testing.T) {
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		file := pool.File{Path: helloTxtFileFixture, Info: info}
-		file.Header, err = zip.FileInfoHeader(file.Info)
+		file, err := pool.NewFile(helloTxtFileFixture, info)
 		assert.NoError(t, err)
 
 		buf := bytes.Buffer{}
@@ -152,11 +151,10 @@ func TestFileWriter(t *testing.T) {
 
 			absPath, err := filepath.Abs(helloTxtFileFixture)
 			assert.NoError(t, err)
-			file := pool.File{Path: absPath, Info: info}
-			file.Header, err = zip.FileInfoHeader(file.Info)
+			file, err := pool.NewFile(absPath, info)
 			assert.NoError(t, err)
 
-			archiver.createHeader(&file)
+			archiver.populateHeader(&file)
 
 			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
@@ -169,11 +167,10 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file := pool.File{Path: helloTxtFileFixture, Info: info}
-			file.Header, err = zip.FileInfoHeader(file.Info)
+			file, err := pool.NewFile(helloTxtFileFixture, info)
 			assert.NoError(t, err)
 
-			archiver.createHeader(&file)
+			archiver.populateHeader(&file)
 
 			assert.Equal(t, "hello.txt", file.Header.Name)
 		})
@@ -186,16 +183,15 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			archiver.changeRoot(helloDirectoryFixture)
-			filePath := "nested/hello.md"
+			filePath := filepath.Join(archiver.chroot, "nested/hello.md")
 
-			info := testutils.GetFileInfo(t, filepath.Join(archiver.chroot, filePath))
-			file := pool.File{Name: "nested/hello.md", Path: filePath, Info: info}
-			file.Header, err = zip.FileInfoHeader(file.Info)
+			info := testutils.GetFileInfo(t, filePath)
+			file, err := pool.NewFile(filePath, info)
 			assert.NoError(t, err)
 
-			archiver.createHeader(&file)
+			archiver.populateHeader(&file)
 
-			assert.Equal(t, "nested/hello.md", file.Header.Name)
+			assert.Equal(t, "hello/nested/hello.md", file.Header.Name)
 		})
 
 		t.Run("with deflate method and correct mod time, mode, data descriptor and extended timestamp for files", func(t *testing.T) {
@@ -206,12 +202,12 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 
 			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file := pool.File{Path: helloTxtFileFixture, Info: info}
-			file.Header, err = zip.FileInfoHeader(file.Info)
+			file, err := pool.NewFile(helloTxtFileFixture, info)
 			assert.NoError(t, err)
+
 			archiver.compress(&file)
 
-			archiver.createHeader(&file)
+			archiver.populateHeader(&file)
 
 			assert.Equal(t, zip.Deflate, file.Header.Method)
 			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
@@ -232,12 +228,12 @@ func TestFileWriter(t *testing.T) {
 			assert.NoError(t, err)
 			archiver.changeRoot(helloDirectoryFixture)
 
+			filePath := filepath.Join(archiver.chroot, "nested")
 			info := testutils.GetFileInfo(t, filepath.Join(helloDirectoryFixture, "/nested"))
-			file := pool.File{Name: "hello/nested", Path: "hello/nested", Info: info}
-			file.Header, err = zip.FileInfoHeader(file.Info)
+			file, err := pool.NewFile(filePath, info)
 			assert.NoError(t, err)
 
-			archiver.createHeader(&file)
+			archiver.populateHeader(&file)
 
 			assert.Equal(t, "hello/nested/", file.Header.Name)
 			assert.Equal(t, zip.Store, file.Header.Method)

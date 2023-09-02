@@ -37,14 +37,11 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 
 	fileProcessExecutor := func(file pool.File) {
-		hdr, _ := zip.FileInfoHeader(file.Info)
-		file.Header = hdr
-
 		if !file.Info.IsDir() {
 			a.compress(&file)
 		}
 
-		a.createHeader(&file)
+		a.populateHeader(&file)
 
 		a.fileWriterPool.Enqueue(file)
 	}
@@ -72,21 +69,25 @@ func (a *Archiver) Archive(files []string) error {
 	a.fileProcessPool.Start()
 	a.fileWriterPool.Start()
 
-	for _, file := range files {
-		info, err := os.Lstat(file)
+	for _, path := range files {
+		info, err := os.Lstat(path)
 		if err != nil {
-			return errors.Errorf("ERROR: could not get stat of %s: %v", file, err)
+			return errors.Errorf("ERROR: could not get stat of %s: %v", path, err)
 		}
 
 		if info.IsDir() {
-			err = a.ArchiveDir(file)
+			err = a.ArchiveDir(path)
 		} else {
-			f := pool.File{Path: file, Info: info}
+			f, err := pool.NewFile(path, info)
+			if err != nil {
+				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
+			}
+
 			a.ArchiveFile(f)
 		}
 
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not archive %s", file)
+			return errors.Wrapf(err, "ERROR: could not archive %s", path)
 		}
 	}
 
@@ -139,14 +140,10 @@ func (a *Archiver) walkDir() error {
 			return err
 		}
 
-		relativeToRoot, err := filepath.Rel(a.chroot, path)
-		relativeIncludingRoot := filepath.Join(filepath.Base(a.chroot), relativeToRoot)
-
+		f, err := pool.NewFile(path, info)
 		if err != nil {
-			return errors.Errorf("ERROR: could not determine relative path of %s", path)
+			return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 		}
-
-		f := pool.File{Name: relativeIncludingRoot, Path: path, Info: info}
 		a.ArchiveFile(f)
 
 		return nil
@@ -202,11 +199,15 @@ func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
 	return nil
 }
 
-func (a *Archiver) createHeader(file *pool.File) error {
+func (a *Archiver) populateHeader(file *pool.File) error {
 	header := file.Header
 
 	if a.dirArchive() {
-		header.Name = file.Name
+		relativeToRoot, err := a.relativeToChRoot(file.Path)
+		if err != nil {
+			return errors.Wrapf(err, "ERROR: could not find path relative to directory root %s", file.Path)
+		}
+		header.Name = relativeToRoot
 	}
 
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
@@ -248,6 +249,15 @@ func (a *Archiver) createHeader(file *pool.File) error {
 
 func (a *Archiver) dirArchive() bool {
 	return a.chroot != ""
+}
+
+func (a *Archiver) relativeToChRoot(path string) (string, error) {
+	relativeToRoot, err := filepath.Rel(a.chroot, path)
+	if err != nil {
+		return "", errors.Errorf("ERROR: could not find relative path of %s to root %s", path, a.chroot)
+	}
+
+	return filepath.Join(filepath.Base(a.chroot), relativeToRoot), nil
 }
 
 func (a *Archiver) archive(f *pool.File) error {
