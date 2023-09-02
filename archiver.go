@@ -19,6 +19,7 @@ import (
 const (
 	defaultCompression = -1
 	zipVersion20       = 20
+	sequentialWrites   = 1
 )
 
 type Archiver struct {
@@ -56,7 +57,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		a.archive(&file)
 	}
 
-	fileWriterPool, err := pool.NewFileWorkerPool(1, fileWriterExecutor)
+	fileWriterPool, err := pool.NewFileWorkerPool(sequentialWrites, fileWriterExecutor)
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file writer pool")
 	}
@@ -65,11 +66,11 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	return a, nil
 }
 
-func (a *Archiver) Archive(files []string) error {
+func (a *Archiver) Archive(filePaths []string) error {
 	a.fileProcessPool.Start()
 	a.fileWriterPool.Start()
 
-	for _, path := range files {
+	for _, path := range filePaths {
 		info, err := os.Lstat(path)
 		if err != nil {
 			return errors.Errorf("ERROR: could not get stat of %s: %v", path, err)
@@ -78,12 +79,12 @@ func (a *Archiver) Archive(files []string) error {
 		if info.IsDir() {
 			err = a.ArchiveDir(path)
 		} else {
-			f, err := pool.NewFile(path, info)
+			file, err := pool.NewFile(path, info)
 			if err != nil {
 				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 			}
 
-			a.ArchiveFile(f)
+			a.ArchiveFile(file)
 		}
 
 		if err != nil {
@@ -111,8 +112,8 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-func (a *Archiver) ArchiveFile(f pool.File) {
-	a.fileProcessPool.Enqueue(f)
+func (a *Archiver) ArchiveFile(file pool.File) {
+	a.fileProcessPool.Enqueue(file)
 }
 
 func (a *Archiver) Close() error {
@@ -140,11 +141,11 @@ func (a *Archiver) walkDir() error {
 			return err
 		}
 
-		f, err := pool.NewFile(path, info)
+		file, err := pool.NewFile(path, info)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 		}
-		a.ArchiveFile(f)
+		a.ArchiveFile(file)
 
 		return nil
 	})
