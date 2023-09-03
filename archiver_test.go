@@ -2,7 +2,6 @@ package pzip
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
@@ -118,7 +117,7 @@ func TestArchive(t *testing.T) {
 	})
 }
 
-func TestCompressToBuffer(t *testing.T) {
+func TestCompress(t *testing.T) {
 	t.Run("compresses file to buffer using default deflate compression", func(t *testing.T) {
 		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
@@ -130,99 +129,96 @@ func TestCompressToBuffer(t *testing.T) {
 		file, err := pool.NewFile(helloTxtFileFixture, info)
 		assert.NoError(t, err)
 
-		buf := bytes.Buffer{}
-		archiver.compressToBuffer(&buf, &file)
+		archiver.compress(&file)
 
 		want := []byte{0, 14, 0, 241, 255, 104, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 10, 3, 0}
 
-		assert.Equal(t, want, buf.Bytes())
+		assert.Equal(t, want, file.CompressedData.Bytes())
 	})
 }
 
-func TestFileWriter(t *testing.T) {
-	t.Run("writes correct header", func(t *testing.T) {
-		t.Run("with file name relative to archive root when file path is relative", func(t *testing.T) {
-			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file, err := pool.NewFile(helloTxtFileFixture, info)
-			assert.NoError(t, err)
+func TestPopulateHeader(t *testing.T) {
+	t.Run("with file name relative to archive root when file path is relative", func(t *testing.T) {
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
+		file, err := pool.NewFile(helloTxtFileFixture, info)
+		assert.NoError(t, err)
 
-			assert.Equal(t, "hello.txt", file.Header.Name)
-		})
+		assert.Equal(t, "hello.txt", file.Header.Name)
+	})
 
-		t.Run("with file name relative to archive root when file path is absolute", func(t *testing.T) {
-			absFilePath, err := filepath.Abs(helloTxtFileFixture)
-			assert.NoError(t, err)
-			info := testutils.GetFileInfo(t, absFilePath)
-			file, err := pool.NewFile(absFilePath, info)
-			assert.NoError(t, err)
+	t.Run("with file name relative to archive root when file path is absolute", func(t *testing.T) {
+		absFilePath, err := filepath.Abs(helloTxtFileFixture)
+		assert.NoError(t, err)
+		info := testutils.GetFileInfo(t, absFilePath)
+		file, err := pool.NewFile(absFilePath, info)
+		assert.NoError(t, err)
 
-			assert.Equal(t, "hello.txt", file.Header.Name)
-		})
+		assert.Equal(t, "hello.txt", file.Header.Name)
+	})
 
-		t.Run("with file name relative to archive root for directories", func(t *testing.T) {
-			filePath := filepath.Join(helloDirectoryFixture, "nested/hello.md")
-			info := testutils.GetFileInfo(t, filePath)
+	t.Run("with file name relative to archive root for directories", func(t *testing.T) {
+		filePath := filepath.Join(helloDirectoryFixture, "nested/hello.md")
+		info := testutils.GetFileInfo(t, filePath)
 
-			file, err := pool.NewFile(filePath, info)
-			assert.NoError(t, err)
+		file, err := pool.NewFile(filePath, info)
+		assert.NoError(t, err)
 
-			err = file.SetNameRelativeTo(helloDirectoryFixture)
-			assert.NoError(t, err)
+		err = file.SetNameRelativeTo(helloDirectoryFixture)
+		assert.NoError(t, err)
 
-			assert.Equal(t, "hello/nested/hello.md", file.Header.Name)
-		})
-		t.Run("with deflate method and correct mod time, mode, data descriptor and extended timestamp for files", func(t *testing.T) {
-			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
-			defer cleanup()
+		assert.Equal(t, "hello/nested/hello.md", file.Header.Name)
+	})
+	t.Run("with deflate method and correct mod time, mode, data descriptor and extended timestamp for files", func(t *testing.T) {
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
+		defer cleanup()
 
-			archiver, err := NewArchiver(archive)
-			assert.NoError(t, err)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 
-			info := testutils.GetFileInfo(t, helloTxtFileFixture)
-			file, err := pool.NewFile(helloTxtFileFixture, info)
-			assert.NoError(t, err)
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
+		file, err := pool.NewFile(helloTxtFileFixture, info)
+		assert.NoError(t, err)
 
-			archiver.compress(&file)
-			archiver.populateHeader(&file)
+		archiver.compress(&file)
+		archiver.populateHeader(&file)
 
-			assert.Equal(t, zip.Deflate, file.Header.Method)
-			assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
-			assert.Equal(t, info.Mode(), file.Header.Mode())
-			assert.NotZero(t, file.Header.CRC32)
-			assert.Equal(t, uint64(file.CompressedData.Len()), file.Header.CompressedSize64)
-			assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
-			assertExtendedTimestamp(t, file.Header)
-		})
+		assert.Equal(t, zip.Deflate, file.Header.Method)
+		assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
+		assert.Equal(t, info.Mode(), file.Header.Mode())
+		assert.NotZero(t, file.Header.CRC32)
+		assert.Equal(t, uint64(file.CompressedData.Len()), file.Header.CompressedSize64)
+		assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
+		assertExtendedTimestamp(t, file.Header.Extra)
+	})
 
-		t.Run("for directories", func(t *testing.T) {
-			archive, cleanup := testutils.CreateTempArchive(t, archivePath)
-			defer cleanup()
+	t.Run("for directories", func(t *testing.T) {
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
+		defer cleanup()
 
-			archiver, err := NewArchiver(archive)
-			assert.NoError(t, err)
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
 
-			filePath := filepath.Join(helloDirectoryFixture, "nested")
-			info := testutils.GetFileInfo(t, filePath)
-			file, err := pool.NewFile(filePath, info)
-			assert.NoError(t, err)
-			file.SetNameRelativeTo(helloDirectoryFixture)
+		filePath := filepath.Join(helloDirectoryFixture, "nested")
+		info := testutils.GetFileInfo(t, filePath)
+		file, err := pool.NewFile(filePath, info)
+		assert.NoError(t, err)
+		file.SetNameRelativeTo(helloDirectoryFixture)
 
-			archiver.compress(&file)
-			archiver.populateHeader(&file)
+		archiver.compress(&file)
+		archiver.populateHeader(&file)
 
-			assert.Equal(t, "hello/nested/", file.Header.Name)
-			assert.Equal(t, zip.Store, file.Header.Method)
-			assert.Zero(t, file.Header.CRC32)
-			assert.Equal(t, 0, file.Header.CompressedSize64)
-			assert.Equal(t, 0, file.Header.UncompressedSize64)
-		})
+		assert.Equal(t, "hello/nested/", file.Header.Name)
+		assert.Equal(t, zip.Store, file.Header.Method)
+		assert.Zero(t, file.Header.CRC32)
+		assert.Equal(t, 0, file.Header.CompressedSize64)
+		assert.Equal(t, 0, file.Header.UncompressedSize64)
 	})
 }
 
-func assertExtendedTimestamp(t testing.TB, hdr *zip.FileHeader) {
+func assertExtendedTimestamp(t testing.TB, extraField []byte) {
 	want := make([]byte, 2)
 	binary.LittleEndian.PutUint16(want, extendedTimestampTag)
-	got := hdr.Extra[:2]
+	got := extraField[:2]
 	assert.Equal(t, want, got, "expected header to contain extended timestamp")
 }
 

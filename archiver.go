@@ -2,7 +2,6 @@ package pzip
 
 import (
 	"archive/zip"
-	"bytes"
 	"hash/crc32"
 	"io"
 	"io/fs"
@@ -158,43 +157,36 @@ func (a *Archiver) walkDir() error {
 }
 
 func (a *Archiver) compress(file *pool.File) error {
-	buf := bytes.Buffer{}
-	err := a.compressToBuffer(&buf, file)
+	compressor, err := flate.NewWriter(&file.CompressedData, defaultCompression)
 	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not compress to buffer %s", file.Path)
+		return errors.New("ERROR: could not create compressor")
 	}
-	file.CompressedData = buf
+	hasher := crc32.NewIEEE()
+	w := io.MultiWriter(compressor, hasher)
+
+	err = a.read(w, file)
+	if err != nil {
+		return errors.Wrapf(err, "ERROR: could not read file %s", file.Path)
+	}
+
+	err = compressor.Close()
+	if err != nil {
+		return errors.New("ERROR: could not close compressor")
+	}
+
+	file.Header.CRC32 = hasher.Sum32()
 	return nil
 }
 
-func (a *Archiver) compressToBuffer(buf *bytes.Buffer, file *pool.File) error {
+func (a *Archiver) read(w io.Writer, file *pool.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
 	}
 
-	compressor, err := flate.NewWriter(buf, defaultCompression)
+	_, err = io.Copy(w, f)
 	if err != nil {
-		return err
-	}
-
-	defer func() {
-		cErr := compressor.Close()
-		if cErr != nil {
-			err = cErr
-		}
-	}()
-
-	hasher := crc32.NewIEEE()
-
-	writer := io.MultiWriter(compressor, hasher)
-
-	_, err = io.Copy(writer, f)
-
-	file.Header.CRC32 = hasher.Sum32()
-
-	if err != nil {
-		return errors.Errorf("ERROR: could not compress file %s", file.Path)
+		return errors.Errorf("ERROR: could not read file %s: %v", file.Path, err)
 	}
 
 	return nil
