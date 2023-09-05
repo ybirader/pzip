@@ -204,6 +204,7 @@ func (a *Archiver) read(w io.Writer, file *pool.File) error {
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
 	}
+	defer f.Close()
 
 	_, err = io.Copy(w, f)
 	if err != nil {
