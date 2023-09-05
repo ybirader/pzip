@@ -14,6 +14,7 @@ type File struct {
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
+	Status         string
 }
 
 func NewFile(path string, info fs.FileInfo) (File, error) {
