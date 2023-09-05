@@ -2,6 +2,7 @@ package pzip
 
 import (
 	"archive/zip"
+	"context"
 	"hash/crc32"
 	"io"
 	"io/fs"
@@ -36,14 +37,24 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		numberOfWorkers: runtime.GOMAXPROCS(0),
 	}
 
-	fileProcessExecutor := func(file pool.File) {
+	fileProcessExecutor := func(file pool.File) error {
+		var err error
+
 		if !file.Info.IsDir() {
-			a.compress(&file)
+			err = a.compress(&file)
+			if err != nil {
+				return errors.Wrapf(err, "ERROR: could not compress file %s", file.Path)
+			}
 		}
 
-		a.populateHeader(&file)
+		err = a.populateHeader(&file)
+		if err != nil {
+			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+		}
 
 		a.fileWriterPool.Enqueue(file)
+
+		return nil
 	}
 
 	fileProcessPool, err := pool.NewFileWorkerPool(a.numberOfWorkers, fileProcessExecutor)
@@ -52,8 +63,13 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 	a.fileProcessPool = fileProcessPool
 
-	fileWriterExecutor := func(file pool.File) {
-		a.archive(&file)
+	fileWriterExecutor := func(file pool.File) error {
+		err := a.archive(&file)
+		if err != nil {
+			return errors.Wrapf(err, "ERROR: could not write file %s to archive", file.Path)
+		}
+
+		return nil
 	}
 
 	fileWriterPool, err := pool.NewFileWorkerPool(sequentialWrites, fileWriterExecutor)
@@ -66,8 +82,8 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 }
 
 func (a *Archiver) Archive(filePaths []string) error {
-	a.fileProcessPool.Start()
-	a.fileWriterPool.Start()
+	a.fileProcessPool.Start(context.Background())
+	a.fileWriterPool.Start(context.Background())
 
 	for _, path := range filePaths {
 		info, err := os.Lstat(path)
@@ -78,6 +94,7 @@ func (a *Archiver) Archive(filePaths []string) error {
 		if info.IsDir() {
 			err = a.ArchiveDir(path)
 		} else {
+			a.chroot = ""
 			file, err := pool.NewFile(path, info)
 			if err != nil {
 				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
@@ -91,8 +108,12 @@ func (a *Archiver) Archive(filePaths []string) error {
 		}
 	}
 
-	a.fileProcessPool.Close()
-	a.fileWriterPool.Close()
+	if err := a.fileProcessPool.Close(); err != nil {
+		return errors.Wrap(err, "ERROR: could not close file process pool")
+	}
+	if err := a.fileWriterPool.Close(); err != nil {
+		return errors.Wrap(err, "ERROR: could not close file writer pool")
+	}
 
 	return nil
 }

@@ -1,7 +1,9 @@
 package pool
 
+import "context"
+
 type WorkerPool[T any] interface {
-	Start()
-	Close()
+	Start(ctx context.Context)
+	Close() error
 	Enqueue(v T)
 }

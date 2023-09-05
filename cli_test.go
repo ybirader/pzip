@@ -11,7 +11,7 @@ import (
 
 func TestCLI(t *testing.T) {
 	t.Run("archives a directory and some files", func(t *testing.T) {
-		files := []string{"testdata/hello", "testdata/hello.md"}
+		files := []string{"testdata/hello", "testdata/hello.txt"}
 		archivePath := "testdata/archive.zip"
 		defer os.RemoveAll(archivePath)
 

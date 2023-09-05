@@ -1,8 +1,10 @@
 package pool
 
 import (
-	"errors"
-	"sync"
+	"context"
+
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -12,12 +14,13 @@ const (
 
 type FileWorkerPool struct {
 	tasks           chan File
-	executor        func(f File)
-	wg              *sync.WaitGroup
+	executor        func(f File) error
+	g               *errgroup.Group
+	ctxCancel       func(error)
 	numberOfWorkers int
 }
 
-func NewFileWorkerPool(numberOfWorkers int, executor func(f File)) (*FileWorkerPool, error) {
+func NewFileWorkerPool(numberOfWorkers int, executor func(f File) error) (*FileWorkerPool, error) {
 	if numberOfWorkers < minNumberOfWorkers {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
@@ -25,40 +28,56 @@ func NewFileWorkerPool(numberOfWorkers int, executor func(f File)) (*FileWorkerP
 	return &FileWorkerPool{
 		tasks:           make(chan File, capacity),
 		executor:        executor,
-		wg:              new(sync.WaitGroup),
+		g:               new(errgroup.Group),
 		numberOfWorkers: numberOfWorkers,
 	}, nil
 }
 
-func (f *FileWorkerPool) Start() {
+func (f *FileWorkerPool) Start(ctx context.Context) {
 	f.reset()
-	f.wg.Add(f.numberOfWorkers)
+
+	ctx, cancel := context.WithCancelCause(ctx)
+	f.ctxCancel = cancel
+
 	for i := 0; i < f.numberOfWorkers; i++ {
-		go f.listen()
+		f.g.Go(func() error {
+			if err := f.listen(ctx); err != nil {
+				f.ctxCancel(err)
+				return err
+			}
+
+			return nil
+		})
 	}
-}
-
-func (f *FileWorkerPool) Close() {
-	close(f.tasks)
-	f.wg.Wait()
-}
-
-func (f *FileWorkerPool) listen() {
-	defer f.wg.Done()
-
-	for file := range f.tasks {
-		f.executor(file)
-	}
-}
-
-func (f FileWorkerPool) PendingFiles() int {
-	return len(f.tasks)
 }
 
 func (f *FileWorkerPool) Enqueue(file File) {
 	f.tasks <- file
 }
 
+func (f FileWorkerPool) PendingFiles() int {
+	return len(f.tasks)
+}
+
+func (f *FileWorkerPool) Close() error {
+	close(f.tasks)
+	err := f.g.Wait()
+	f.ctxCancel(err)
+	return err
+}
+
+func (f *FileWorkerPool) listen(ctx context.Context) error {
+	for file := range f.tasks {
+		if err := f.executor(file); err != nil {
+			return errors.Wrapf(err, "ERROR: could not process file %s", file.Path)
+		} else if err := ctx.Err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan File)
+	f.tasks = make(chan File, capacity)
 }
