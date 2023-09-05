@@ -172,7 +172,7 @@ func (a *Archiver) compress(file *pool.File) error {
 	var err error
 
 	if file.Info.IsDir() {
-		file.Status = "finished"
+		file.Status = pool.FileFinished
 		err = a.populateHeader(file)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
@@ -203,7 +203,7 @@ func (a *Archiver) compress(file *pool.File) error {
 	}
 
 	file.Header.CRC32 = hasher.Sum32()
-	file.Status = "finished"
+	file.Status = pool.FileFinished
 	return nil
 }
 

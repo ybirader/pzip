@@ -14,8 +14,14 @@ type File struct {
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
-	Status         string
+	Status         Status
 }
+
+type Status int
+
+const (
+	FileFinished Status = iota
+)
 
 func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 	hdr, err := zip.FileInfoHeader(info)
