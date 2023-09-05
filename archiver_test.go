@@ -140,6 +140,7 @@ func TestCompress(t *testing.T) {
 		assert.NotZero(t, file.Header.CRC32)
 		assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
 		assert.Equal(t, uint64(file.CompressedData.Len()), file.Header.CompressedSize64)
+		assert.Equal(t, file.CompressedData.Len(), file.Written())
 		assertExtendedTimestamp(t, file.Header.Extra)
 	})
 
@@ -161,6 +162,7 @@ func TestCompress(t *testing.T) {
 
 		assert.Equal(t, file.CompressedData.Len(), bufCap)
 		assert.Equal(t, pool.FileFull, file.Status)
+		assert.Equal(t, file.CompressedData.Len(), file.Written())
 	})
 
 	t.Run("for directories", func(t *testing.T) {
@@ -184,6 +186,7 @@ func TestCompress(t *testing.T) {
 		assert.Zero(t, file.Header.CRC32)
 		assert.Equal(t, 0, file.Header.UncompressedSize64)
 		assert.Equal(t, 0, file.Header.CompressedSize64)
+		assert.Equal(t, file.CompressedData.Len(), file.Written())
 	})
 }
 

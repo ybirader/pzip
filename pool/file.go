@@ -9,19 +9,21 @@ import (
 	"github.com/pkg/errors"
 )
 
+const defaultBufferSize = 1000000
+
 type File struct {
 	Path           string
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
 	Status         Status
+	written        int
 }
 
 type Status int
 
 const (
-	defaultBufferSize        = 1000000
-	FileFinished      Status = iota
+	FileFinished Status = iota
 	FileFull
 )
 
@@ -42,11 +44,16 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 func (f *File) Write(p []byte) (n int, err error) {
 	if f.CompressedData.Available() != 0 {
 		maxWritable := min(f.CompressedData.Available(), len(p))
+		f.written += maxWritable
 		return f.CompressedData.Write(p[:int(maxWritable)])
 	}
 
 	f.Status = FileFull
 	return len(p), nil
+}
+
+func (f *File) Written() int {
+	return f.written
 }
 
 func (f *File) setNameRelativeTo(root string) error {
