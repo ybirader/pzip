@@ -17,7 +17,7 @@ type File struct {
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
 	Status         Status
-	written        int
+	written        int64
 }
 
 type Status int
@@ -44,7 +44,7 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 func (f *File) Write(p []byte) (n int, err error) {
 	if f.CompressedData.Available() != 0 {
 		maxWritable := min(f.CompressedData.Available(), len(p))
-		f.written += maxWritable
+		f.written += int64(maxWritable)
 		return f.CompressedData.Write(p[:int(maxWritable)])
 	}
 
@@ -52,7 +52,7 @@ func (f *File) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (f *File) Written() int {
+func (f *File) Written() int64 {
 	return f.written
 }
 
