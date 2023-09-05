@@ -20,7 +20,9 @@ type File struct {
 type Status int
 
 const (
-	FileFinished Status = iota
+	defaultBufferSize        = 1000000
+	FileFinished      Status = iota
+	FileFull
 )
 
 func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
@@ -29,12 +31,22 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 		return File{}, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 
-	f := File{Path: path, Info: info, Header: hdr}
+	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)
 	}
 
 	return f, nil
+}
+
+func (f *File) Write(p []byte) (n int, err error) {
+	if f.CompressedData.Available() != 0 {
+		maxWritable := min(f.CompressedData.Available(), len(p))
+		return f.CompressedData.Write(p[:int(maxWritable)])
+	}
+
+	f.Status = FileFull
+	return len(p), nil
 }
 
 func (f *File) setNameRelativeTo(root string) error {

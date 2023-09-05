@@ -2,6 +2,7 @@ package pzip
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
@@ -140,6 +141,26 @@ func TestCompress(t *testing.T) {
 		assert.Equal(t, uint64(info.Size()), file.Header.UncompressedSize64)
 		assert.Equal(t, uint64(file.CompressedData.Len()), file.Header.CompressedSize64)
 		assertExtendedTimestamp(t, file.Header.Extra)
+	})
+
+	t.Run("writes a maximum of buffer cap bytes", func(t *testing.T) {
+		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
+		defer cleanup()
+
+		archiver, err := NewArchiver(archive)
+		assert.NoError(t, err)
+
+		info := testutils.GetFileInfo(t, helloTxtFileFixture)
+		file, err := pool.NewFile(helloTxtFileFixture, info, "")
+		assert.NoError(t, err)
+		bufCap := 5
+		file.CompressedData = *bytes.NewBuffer(make([]byte, 0, bufCap))
+
+		err = archiver.compress(&file)
+		assert.NoError(t, err)
+
+		assert.Equal(t, file.CompressedData.Len(), bufCap)
+		assert.Equal(t, pool.FileFull, file.Status)
 	})
 
 	t.Run("for directories", func(t *testing.T) {

@@ -180,14 +180,14 @@ func (a *Archiver) compress(file *pool.File) error {
 		return nil
 	}
 
-	compressor, err := flate.NewWriter(&file.CompressedData, defaultCompression)
+	compressor, err := flate.NewWriter(file, defaultCompression)
 	if err != nil {
 		return errors.New("ERROR: could not create compressor")
 	}
 	hasher := crc32.NewIEEE()
 	w := io.MultiWriter(compressor, hasher)
 
-	err = a.read(w, file)
+	err = a.copy(w, file)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not read file %s", file.Path)
 	}
@@ -203,11 +203,10 @@ func (a *Archiver) compress(file *pool.File) error {
 	}
 
 	file.Header.CRC32 = hasher.Sum32()
-	file.Status = pool.FileFinished
 	return nil
 }
 
-func (a *Archiver) read(w io.Writer, file *pool.File) error {
+func (a *Archiver) copy(w io.Writer, file *pool.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
