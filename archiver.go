@@ -38,18 +38,9 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 
 	fileProcessExecutor := func(file pool.File) error {
-		var err error
-
-		if !file.Info.IsDir() {
-			err = a.compress(&file)
-			if err != nil {
-				return errors.Wrapf(err, "ERROR: could not compress file %s", file.Path)
-			}
-		}
-
-		err = a.populateHeader(&file)
+		err := a.compress(&file)
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+			return errors.Wrapf(err, "ERROR: could not compress file %s", file.Path)
 		}
 
 		a.fileWriterPool.Enqueue(file)
@@ -178,6 +169,17 @@ func (a *Archiver) walkDir() error {
 }
 
 func (a *Archiver) compress(file *pool.File) error {
+	var err error
+
+	if file.Info.IsDir() {
+		file.Status = "finished"
+		err = a.populateHeader(file)
+		if err != nil {
+			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+		}
+		return nil
+	}
+
 	compressor, err := flate.NewWriter(&file.CompressedData, defaultCompression)
 	if err != nil {
 		return errors.New("ERROR: could not create compressor")
@@ -195,7 +197,13 @@ func (a *Archiver) compress(file *pool.File) error {
 		return errors.New("ERROR: could not close compressor")
 	}
 
+	err = a.populateHeader(file)
+	if err != nil {
+		return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+	}
+
 	file.Header.CRC32 = hasher.Sum32()
+	file.Status = "finished"
 	return nil
 }
 
