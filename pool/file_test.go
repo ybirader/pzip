@@ -20,7 +20,7 @@ const (
 func TestNewFile(t *testing.T) {
 	t.Run("with file name relative to archive root when file path is relative", func(t *testing.T) {
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		file, err := pool.NewFile(helloTxtFileFixture, info)
+		file, err := pool.NewFile(helloTxtFileFixture, info, "")
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello.txt", file.Header.Name)
@@ -30,7 +30,7 @@ func TestNewFile(t *testing.T) {
 		absFilePath, err := filepath.Abs(helloTxtFileFixture)
 		assert.NoError(t, err)
 		info := testutils.GetFileInfo(t, absFilePath)
-		file, err := pool.NewFile(absFilePath, info)
+		file, err := pool.NewFile(absFilePath, info, "")
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello.txt", file.Header.Name)
@@ -40,10 +40,7 @@ func TestNewFile(t *testing.T) {
 		filePath := filepath.Join(helloDirectoryFixture, "nested/hello.md")
 		info := testutils.GetFileInfo(t, filePath)
 
-		file, err := pool.NewFile(filePath, info)
-		assert.NoError(t, err)
-
-		err = file.SetNameRelativeTo(helloDirectoryFixture)
+		file, err := pool.NewFile(filePath, info, helloDirectoryFixture)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello/nested/hello.md", file.Header.Name)

@@ -126,7 +126,7 @@ func TestCompress(t *testing.T) {
 		assert.NoError(t, err)
 
 		info := testutils.GetFileInfo(t, helloTxtFileFixture)
-		file, err := pool.NewFile(helloTxtFileFixture, info)
+		file, err := pool.NewFile(helloTxtFileFixture, info, "")
 		assert.NoError(t, err)
 
 		err = archiver.compress(&file)
@@ -151,9 +151,8 @@ func TestCompress(t *testing.T) {
 
 		filePath := filepath.Join(helloDirectoryFixture, "nested")
 		info := testutils.GetFileInfo(t, filePath)
-		file, err := pool.NewFile(filePath, info)
+		file, err := pool.NewFile(filePath, info, helloDirectoryFixture)
 		assert.NoError(t, err)
-		file.SetNameRelativeTo(helloDirectoryFixture)
 
 		err = archiver.compress(&file)
 		assert.NoError(t, err)

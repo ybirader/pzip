@@ -17,16 +17,21 @@ type File struct {
 	Status         string
 }
 
-func NewFile(path string, info fs.FileInfo) (File, error) {
+func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 	hdr, err := zip.FileInfoHeader(info)
 	if err != nil {
 		return File{}, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 
-	return File{Path: path, Info: info, Header: hdr}, nil
+	f := File{Path: path, Info: info, Header: hdr}
+	if relativeTo != "" {
+		f.setNameRelativeTo(relativeTo)
+	}
+
+	return f, nil
 }
 
-func (f *File) SetNameRelativeTo(root string) error {
+func (f *File) setNameRelativeTo(root string) error {
 	relativeToRoot, err := filepath.Rel(root, f.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not find relative path of %s to root %s", f.Path, root)

@@ -86,7 +86,7 @@ func (a *Archiver) Archive(filePaths []string) error {
 			err = a.ArchiveDir(path)
 		} else {
 			a.chroot = ""
-			file, err := pool.NewFile(path, info)
+			file, err := pool.NewFile(path, info, "")
 			if err != nil {
 				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 			}
@@ -152,7 +152,7 @@ func (a *Archiver) walkDir() error {
 			return err
 		}
 
-		file, err := pool.NewFile(path, info)
+		file, err := pool.NewFile(path, info, a.chroot)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 		}
@@ -225,13 +225,6 @@ func (a *Archiver) read(w io.Writer, file *pool.File) error {
 func (a *Archiver) populateHeader(file *pool.File) error {
 	header := file.Header
 
-	if a.dirArchive() {
-		err := file.SetNameRelativeTo(a.chroot)
-		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not set path relative to chroot %s", file.Path)
-		}
-	}
-
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
 	utf8ValidComment, utf8RequireComment := detectUTF8(header.Comment)
 	switch {
@@ -267,10 +260,6 @@ func (a *Archiver) populateHeader(file *pool.File) error {
 	file.Header = header
 
 	return nil
-}
-
-func (a *Archiver) dirArchive() bool {
-	return a.chroot != ""
 }
 
 func (a *Archiver) archive(file *pool.File) error {
