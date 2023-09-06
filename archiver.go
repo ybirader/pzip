@@ -268,9 +268,18 @@ func (a *Archiver) archive(file *pool.File) error {
 	}
 
 	_, err = io.Copy(fileWriter, &file.CompressedData)
-
 	if err != nil {
 		return errors.Errorf("ERROR: could not write content for %s", file.Path)
+	}
+
+	if file.Status == pool.FileFull {
+		file.Overflow.Seek(0, io.SeekStart)
+		_, err = io.Copy(fileWriter, file.Overflow)
+		if err != nil {
+			return errors.Errorf("ERROR: could not write overflow content for %s", file.Path)
+		}
+
+		file.Overflow.Close()
 	}
 
 	return nil

@@ -3,7 +3,6 @@ package pool
 import (
 	"archive/zip"
 	"bytes"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 		return File{}, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 
-	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
+	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, 50))}
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)
 	}
@@ -45,23 +44,31 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 }
 
 func (f *File) Write(p []byte) (n int, err error) {
-	if f.CompressedData.Available() >= len(p) {
-		f.written += int64(len(p))
-		return f.CompressedData.Write(p)
+	if f.CompressedData.Available() != 0 {
+		maxWritable := min(f.CompressedData.Available(), len(p))
+		f.written += int64(maxWritable)
+		f.CompressedData.Write(p[:maxWritable])
+		p = p[maxWritable:]
 	}
 
-	if f.Overflow == nil {
-		f.Overflow, err = os.CreateTemp("", "pzip-overflow")
+	if len(p) > 0 {
+		f.Status = FileFull
+
+		if f.Overflow == nil {
+			f.Overflow, err = os.CreateTemp("", "pzip-overflow")
+			if err != nil {
+				return len(p), err
+			}
+		}
+
+		_, err := f.Overflow.Write(p)
 		if err != nil {
 			return len(p), err
 		}
+		f.written += int64(len(p))
 	}
 
-	_, err = io.Copy(f.Overflow, bytes.NewReader(p))
-	f.written += int64(len(p))
-
-	f.Status = FileFull
-	return len(p), err
+	return len(p), nil
 }
 
 func (f *File) Written() int64 {
