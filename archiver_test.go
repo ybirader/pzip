@@ -163,6 +163,7 @@ func TestCompress(t *testing.T) {
 		assert.Equal(t, file.CompressedData.Len(), bufCap)
 		assert.Equal(t, pool.FileFull, file.Status)
 		assertGreaterThan(t, file.Written(), int64(file.CompressedData.Len()))
+		assert.Equal(t, file.Written(), int64(file.Header.CompressedSize64))
 
 		assert.NotZero(t, file.Overflow)
 		overflowInfo := testutils.GetFileInfo(t, file.Overflow.Name())

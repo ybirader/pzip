@@ -253,7 +253,7 @@ func (a *Archiver) populateHeader(file *pool.File) error {
 	} else {
 		header.Method = zip.Deflate
 		header.Flags |= 0x8 // will write data descriptor (crc32, comp, uncomp)
-		header.CompressedSize64 = uint64(file.CompressedData.Len())
+		header.CompressedSize64 = uint64(file.Written())
 	}
 
 	file.Header = header
