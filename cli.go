@@ -1,6 +1,7 @@
 package pzip
 
 import (
+	"context"
 	"os"
 
 	"github.com/pkg/errors"
@@ -24,7 +25,7 @@ func (c *CLI) Archive() error {
 	}
 	defer archiver.Close()
 
-	err = archiver.Archive(c.Files)
+	err = archiver.Archive(context.Background(), c.Files)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not archive files")
 	}

@@ -72,9 +72,9 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	return a, nil
 }
 
-func (a *Archiver) Archive(filePaths []string) error {
-	a.fileProcessPool.Start(context.Background())
-	a.fileWriterPool.Start(context.Background())
+func (a *Archiver) Archive(ctx context.Context, filePaths []string) error {
+	a.fileProcessPool.Start(ctx)
+	a.fileWriterPool.Start(ctx)
 
 	for _, path := range filePaths {
 		info, err := os.Lstat(path)

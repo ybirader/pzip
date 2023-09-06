@@ -3,6 +3,7 @@ package pzip
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive([]string{helloTxtFileFixture})
+		archiver.Archive(context.Background(), []string{helloTxtFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -52,7 +53,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive([]string{helloTxtFileFixture})
+		archiver.Archive(context.Background(), []string{helloTxtFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -74,7 +75,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive([]string{helloTxtFileFixture, helloMarkdownFileFixture})
+		archiver.Archive(context.Background(), []string{helloTxtFileFixture, helloMarkdownFileFixture})
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -89,7 +90,7 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		err = archiver.Archive([]string{helloDirectoryFixture})
+		err = archiver.Archive(context.Background(), []string{helloDirectoryFixture})
 		assert.NoError(t, err)
 		archiver.Close()
 
@@ -105,9 +106,9 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		err = archiver.Archive([]string{helloTxtFileFixture})
+		err = archiver.Archive(context.Background(), []string{helloTxtFileFixture})
 		assert.NoError(t, err)
-		err = archiver.Archive([]string{helloMarkdownFileFixture})
+		err = archiver.Archive(context.Background(), []string{helloMarkdownFileFixture})
 		assert.NoError(t, err)
 		archiver.Close()
 
@@ -222,6 +223,6 @@ func BenchmarkArchive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		archiver.Archive([]string{helloTxtFileFixture, helloMarkdownFileFixture})
+		archiver.Archive(context.Background(), []string{helloTxtFileFixture, helloMarkdownFileFixture})
 	}
 }
