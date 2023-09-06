@@ -10,9 +10,12 @@ import (
 )
 
 const (
-	testdataRoot = "../../testdata"
-	archivePath  = testdataRoot + "/archive.zip"
-	dirPath      = testdataRoot + "/hello"
+	testdataRoot         = "../../testdata"
+	archivePath          = testdataRoot + "/archive.zip"
+	dirPath              = testdataRoot + "/hello"
+	benchmarkRoot        = testdataRoot + "/benchmark"
+	benchmarkDirPath     = benchmarkRoot + "/bench"
+	benchmarkArchivePath = benchmarkRoot + "/bench.zip"
 )
 
 func TestPzip(t *testing.T) {
@@ -39,4 +42,31 @@ func TestPzip(t *testing.T) {
 	driver := cli.NewDriver(binPath, absArchivePath, absDirPath)
 
 	specifications.ArchiveDir(t, driver)
+}
+
+func BenchmarkPzip(b *testing.B) {
+	binPath, cleanup, err := cli.BuildBinary()
+	if err != nil {
+		log.Fatal("ERROR: could not build binary", err)
+	}
+	defer cleanup()
+
+	absArchivePath, err := filepath.Abs(benchmarkArchivePath)
+	if err != nil {
+		b.Fatalf("ERROR: could not get path to archive %s", benchmarkArchivePath)
+	}
+
+	absDirPath, err := filepath.Abs(benchmarkDirPath)
+	if err != nil {
+		b.Fatalf("ERROR: could not get path to directory %s", benchmarkDirPath)
+	}
+
+	driver := cli.NewDriver(binPath, absArchivePath, absDirPath)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		driver.Archive()
+	}
 }

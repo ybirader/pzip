@@ -223,6 +223,6 @@ func BenchmarkArchive(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		archiver.Archive(context.Background(), []string{helloTxtFileFixture, helloMarkdownFileFixture})
+		archiver.Archive(context.Background(), []string{helloDirectoryFixture})
 	}
 }
