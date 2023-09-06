@@ -144,7 +144,7 @@ func TestCompress(t *testing.T) {
 		assertExtendedTimestamp(t, file.Header.Extra)
 	})
 
-	t.Run("writes a maximum of buffer cap bytes and remainder directly to archived file", func(t *testing.T) {
+	t.Run("writes a maximum of buffer cap bytes and remainder directly to temp file", func(t *testing.T) {
 		archive, cleanup := testutils.CreateTempArchive(t, archivePath)
 		defer cleanup()
 
@@ -162,7 +162,11 @@ func TestCompress(t *testing.T) {
 
 		assert.Equal(t, file.CompressedData.Len(), bufCap)
 		assert.Equal(t, pool.FileFull, file.Status)
-		assert.Equal(t, int64(file.CompressedData.Len()), file.Written())
+		assertGreaterThan(t, file.Written(), int64(file.CompressedData.Len()))
+
+		assert.NotZero(t, file.Overflow)
+		overflowInfo := testutils.GetFileInfo(t, file.Overflow.Name())
+		assert.NotZero(t, overflowInfo.Size())
 	})
 
 	t.Run("for directories", func(t *testing.T) {
@@ -203,6 +207,12 @@ func assertMatchingTimes(t testing.TB, t1, t2 time.Time) {
 	assert.True(t,
 		t1.Year() == t2.Year() && t1.YearDay() == t2.YearDay() && t1.Second() == t2.Second(),
 		fmt.Sprintf("expected %+v to match %+v but didn't", t1, t2))
+}
+
+func assertGreaterThan(t testing.TB, a, b int64) {
+	if b >= a {
+		t.Fatalf("expected %d to be greater than %d", a, b)
+	}
 }
 
 func BenchmarkArchive(b *testing.B) {

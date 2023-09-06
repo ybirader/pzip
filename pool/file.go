@@ -3,7 +3,9 @@ package pool
 import (
 	"archive/zip"
 	"bytes"
+	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -17,6 +19,7 @@ type File struct {
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
 	Status         Status
+	Overflow       *os.File
 	written        int64
 }
 
@@ -42,14 +45,23 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 }
 
 func (f *File) Write(p []byte) (n int, err error) {
-	if f.CompressedData.Available() != 0 {
-		maxWritable := min(f.CompressedData.Available(), len(p))
-		f.written += int64(maxWritable)
-		return f.CompressedData.Write(p[:int(maxWritable)])
+	if f.CompressedData.Available() >= len(p) {
+		f.written += int64(len(p))
+		return f.CompressedData.Write(p)
 	}
 
+	if f.Overflow == nil {
+		f.Overflow, err = os.CreateTemp("", "pzip-overflow")
+		if err != nil {
+			return len(p), err
+		}
+	}
+
+	_, err = io.Copy(f.Overflow, bytes.NewReader(p))
+	f.written += int64(len(p))
+
 	f.Status = FileFull
-	return len(p), nil
+	return len(p), err
 }
 
 func (f *File) Written() int64 {
