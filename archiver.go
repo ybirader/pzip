@@ -184,9 +184,8 @@ func (a *Archiver) compress(file *pool.File) error {
 		return errors.New("ERROR: could not create compressor")
 	}
 	hasher := crc32.NewIEEE()
-	w := io.MultiWriter(compressor, hasher)
 
-	err = a.copy(w, file)
+	err = a.copy(io.MultiWriter(compressor, hasher), file)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not read file %s", file.Path)
 	}

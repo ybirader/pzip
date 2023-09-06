@@ -164,10 +164,6 @@ func TestCompress(t *testing.T) {
 		assert.True(t, file.Overflowed())
 		assertGreaterThan(t, file.Written(), int64(file.CompressedData.Len()))
 		assert.Equal(t, file.Written(), int64(file.Header.CompressedSize64))
-
-		assert.NotZero(t, file.Overflow)
-		overflowInfo := testutils.GetFileInfo(t, file.Overflow.Name())
-		assert.NotZero(t, overflowInfo.Size())
 	})
 
 	t.Run("for directories", func(t *testing.T) {
