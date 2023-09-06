@@ -133,7 +133,7 @@ func TestCompress(t *testing.T) {
 		err = archiver.compress(&file)
 		assert.NoError(t, err)
 
-		assert.Equal(t, pool.FileFinished, file.Status)
+		assert.False(t, file.Overflowed())
 		assert.Equal(t, zip.Deflate, file.Header.Method)
 		assertMatchingTimes(t, info.ModTime(), file.Header.Modified)
 		assert.Equal(t, info.Mode(), file.Header.Mode())
@@ -161,7 +161,7 @@ func TestCompress(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, file.CompressedData.Len(), bufCap)
-		assert.Equal(t, pool.FileFull, file.Status)
+		assert.True(t, file.Overflowed())
 		assertGreaterThan(t, file.Written(), int64(file.CompressedData.Len()))
 		assert.Equal(t, file.Written(), int64(file.Header.CompressedSize64))
 
@@ -186,7 +186,7 @@ func TestCompress(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello/nested/", file.Header.Name)
-		assert.Equal(t, pool.FileFinished, file.Status)
+		assert.False(t, file.Overflowed())
 		assert.Equal(t, zip.Store, file.Header.Method)
 		assert.Zero(t, file.Header.CRC32)
 		assert.Equal(t, 0, file.Header.UncompressedSize64)

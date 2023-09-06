@@ -17,17 +17,9 @@ type File struct {
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
-	Status         Status
 	Overflow       *os.File
 	written        int64
 }
-
-type Status int
-
-const (
-	FileFinished Status = iota
-	FileFull
-)
 
 func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 	hdr, err := zip.FileInfoHeader(info)
@@ -52,8 +44,6 @@ func (f *File) Write(p []byte) (n int, err error) {
 	}
 
 	if len(p) > 0 {
-		f.Status = FileFull
-
 		if f.Overflow == nil {
 			f.Overflow, err = os.CreateTemp("", "pzip-overflow")
 			if err != nil {
@@ -73,6 +63,10 @@ func (f *File) Write(p []byte) (n int, err error) {
 
 func (f *File) Written() int64 {
 	return f.written
+}
+
+func (f *File) Overflowed() bool {
+	return f.Overflow != nil
 }
 
 func (f *File) setNameRelativeTo(root string) error {

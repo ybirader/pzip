@@ -172,7 +172,6 @@ func (a *Archiver) compress(file *pool.File) error {
 	var err error
 
 	if file.Info.IsDir() {
-		file.Status = pool.FileFinished
 		err = a.populateHeader(file)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
@@ -272,7 +271,7 @@ func (a *Archiver) archive(file *pool.File) error {
 		return errors.Errorf("ERROR: could not write content for %s", file.Path)
 	}
 
-	if file.Status == pool.FileFull {
+	if file.Overflowed() {
 		file.Overflow.Seek(0, io.SeekStart)
 		_, err = io.Copy(fileWriter, file.Overflow)
 		if err != nil {
