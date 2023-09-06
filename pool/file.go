@@ -16,6 +16,7 @@ const defaultBufferSize = 1000000
 type Overflow interface {
 	io.ReadWriteSeeker
 	io.Closer
+	Name() string
 }
 
 type File struct {

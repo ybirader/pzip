@@ -278,6 +278,7 @@ func (a *Archiver) archive(file *pool.File) error {
 		}
 
 		file.Overflow.Close()
+		os.Remove(file.Overflow.Name())
 	}
 
 	return nil
