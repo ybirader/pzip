@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultBufferSize = 1000000
+const defaultBufferSize = 2 * 1024 * 1024
 
 type Overflow interface {
 	io.ReadWriteSeeker
@@ -34,7 +34,7 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
 		return File{}, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 
-	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, 50))}
+	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)
 	}
