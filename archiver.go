@@ -24,8 +24,8 @@ const (
 
 type Archiver struct {
 	Dest            *os.File
+	Concurrency     int
 	w               *zip.Writer
-	numberOfWorkers int
 	fileProcessPool pool.WorkerPool[pool.File]
 	fileWriterPool  pool.WorkerPool[pool.File]
 	chroot          string
@@ -33,8 +33,8 @@ type Archiver struct {
 
 func NewArchiver(archive *os.File) (*Archiver, error) {
 	a := &Archiver{Dest: archive,
-		w:               zip.NewWriter(archive),
-		numberOfWorkers: runtime.GOMAXPROCS(0),
+		w:           zip.NewWriter(archive),
+		Concurrency: runtime.GOMAXPROCS(0),
 	}
 
 	fileProcessExecutor := func(file pool.File) error {
@@ -48,7 +48,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		return nil
 	}
 
-	fileProcessPool, err := pool.NewFileWorkerPool(a.numberOfWorkers, fileProcessExecutor)
+	fileProcessPool, err := pool.NewFileWorkerPool(a.Concurrency, fileProcessExecutor)
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
 	}

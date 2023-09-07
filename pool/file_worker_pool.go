@@ -8,28 +8,28 @@ import (
 )
 
 const (
-	minNumberOfWorkers = 1
-	capacity           = 1
+	minconcurrency = 1
+	capacity       = 1
 )
 
 type FileWorkerPool struct {
-	tasks           chan File
-	executor        func(f File) error
-	g               *errgroup.Group
-	ctxCancel       func(error)
-	numberOfWorkers int
+	tasks       chan File
+	executor    func(f File) error
+	g           *errgroup.Group
+	ctxCancel   func(error)
+	concurrency int
 }
 
-func NewFileWorkerPool(numberOfWorkers int, executor func(f File) error) (*FileWorkerPool, error) {
-	if numberOfWorkers < minNumberOfWorkers {
+func NewFileWorkerPool(concurrency int, executor func(f File) error) (*FileWorkerPool, error) {
+	if concurrency < minconcurrency {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
 	return &FileWorkerPool{
-		tasks:           make(chan File, capacity),
-		executor:        executor,
-		g:               new(errgroup.Group),
-		numberOfWorkers: numberOfWorkers,
+		tasks:       make(chan File, capacity),
+		executor:    executor,
+		g:           new(errgroup.Group),
+		concurrency: concurrency,
 	}, nil
 }
 
@@ -39,7 +39,7 @@ func (f *FileWorkerPool) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	f.ctxCancel = cancel
 
-	for i := 0; i < f.numberOfWorkers; i++ {
+	for i := 0; i < f.concurrency; i++ {
 		f.g.Go(func() error {
 			if err := f.listen(ctx); err != nil {
 				f.ctxCancel(err)
