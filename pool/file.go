@@ -6,33 +6,51 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/pkg/errors"
 )
 
-const defaultBufferSize = 2 * 1024 * 1024
+const DefaultBufferSize = 2 * 1024 * 1024
+
+var FilePool = sync.Pool{
+	New: func() any {
+		return &File{CompressedData: bytes.NewBuffer(make([]byte, DefaultBufferSize))}
+	},
+}
 
 type File struct {
 	Path           string
 	Info           fs.FileInfo
 	Header         *zip.FileHeader
-	CompressedData bytes.Buffer
+	CompressedData *bytes.Buffer
 	Overflow       *os.File
 	written        int64
 }
 
 func NewFile(path string, info fs.FileInfo, relativeTo string) (*File, error) {
+	f := FilePool.Get().(*File)
+	err := f.Reset(path, info, relativeTo)
+	return f, err
+}
+
+func (f *File) Reset(path string, info fs.FileInfo, relativeTo string) error {
 	hdr, err := zip.FileInfoHeader(info)
 	if err != nil {
-		return nil, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
+		errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
+	f.Path = path
+	f.Info = info
+	f.Header = hdr
+	f.CompressedData.Reset()
+	f.Overflow = nil
+	f.written = 0
 
-	f := &File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)
 	}
 
-	return f, nil
+	return nil
 }
 
 func (f *File) Write(p []byte) (n int, err error) {

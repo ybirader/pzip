@@ -45,4 +45,22 @@ func TestNewFile(t *testing.T) {
 
 		assert.Equal(t, "hello/nested/hello.md", file.Header.Name)
 	})
+
+	t.Run("resets file as new", func(t *testing.T) {
+		filePath := filepath.Join(helloDirectoryFixture, "nested/hello.md")
+		info := testutils.GetFileInfo(t, filePath)
+
+		file, err := pool.NewFile(filePath, info, helloDirectoryFixture)
+		assert.NoError(t, err)
+
+		newInfo := testutils.GetFileInfo(t, helloTxtFileFixture)
+		err = file.Reset(helloTxtFileFixture, newInfo, "")
+		assert.NoError(t, err)
+
+		assert.Equal(t, helloTxtFileFixture, file.Path)
+		assert.Equal(t, newInfo, file.Info)
+		assert.Equal(t, "hello.txt", file.Header.Name)
+		assert.Equal(t, 0, file.CompressedData.Len())
+		assert.Equal(t, pool.DefaultBufferSize, file.CompressedData.Cap())
+	})
 }

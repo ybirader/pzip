@@ -156,7 +156,7 @@ func TestCompress(t *testing.T) {
 		file, err := pool.NewFile(helloTxtFileFixture, info, "")
 		assert.NoError(t, err)
 		bufCap := 5
-		file.CompressedData = *bytes.NewBuffer(make([]byte, 0, bufCap))
+		file.CompressedData = bytes.NewBuffer(make([]byte, 0, bufCap))
 
 		err = archiver.compress(file)
 		assert.NoError(t, err)

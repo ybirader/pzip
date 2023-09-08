@@ -265,7 +265,7 @@ func (a *Archiver) archive(file *pool.File) error {
 		return errors.Errorf("ERROR: could not write raw header for %s", file.Path)
 	}
 
-	_, err = io.Copy(fileWriter, &file.CompressedData)
+	_, err = io.Copy(fileWriter, file.CompressedData)
 	if err != nil {
 		return errors.Errorf("ERROR: could not write content for %s", file.Path)
 	}
@@ -280,6 +280,8 @@ func (a *Archiver) archive(file *pool.File) error {
 		file.Overflow.Close()
 		os.Remove(file.Overflow.Name())
 	}
+
+	pool.FilePool.Put(file)
 
 	return nil
 }
