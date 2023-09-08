@@ -2,6 +2,7 @@ package pzip
 
 import (
 	"archive/zip"
+	"bufio"
 	"context"
 	"hash/crc32"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -20,6 +22,14 @@ const (
 	zipVersion20       = 20
 	sequentialWrites   = 1
 )
+
+const bufferSize = 32 * 1024
+
+var bufferPool = sync.Pool{
+	New: func() any {
+		return bufio.NewReaderSize(nil, bufferSize)
+	},
+}
 
 type Archiver struct {
 	Dest            *os.File
@@ -206,7 +216,10 @@ func (a *Archiver) copy(w io.Writer, file *pool.File) error {
 	}
 	defer f.Close()
 
-	_, err = io.Copy(w, f)
+	buf := bufferPool.Get().(*bufio.Reader)
+	buf.Reset(f)
+	_, err = io.Copy(w, buf)
+	bufferPool.Put(buf)
 	if err != nil {
 		return errors.Errorf("ERROR: could not read file %s: %v", file.Path, err)
 	}
