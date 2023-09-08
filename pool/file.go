@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/klauspost/compress/flate"
 	"github.com/pkg/errors"
 )
 
@@ -25,6 +26,7 @@ type File struct {
 	Header         *zip.FileHeader
 	CompressedData *bytes.Buffer
 	Overflow       *os.File
+	Compressor     *flate.Writer
 	written        int64
 }
 
@@ -37,7 +39,7 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (*File, error) {
 func (f *File) Reset(path string, info fs.FileInfo, relativeTo string) error {
 	hdr, err := zip.FileInfoHeader(info)
 	if err != nil {
-		errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
+		return errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 	f.Path = path
 	f.Info = info
@@ -45,6 +47,15 @@ func (f *File) Reset(path string, info fs.FileInfo, relativeTo string) error {
 	f.CompressedData.Reset()
 	f.Overflow = nil
 	f.written = 0
+
+	if f.Compressor == nil {
+		f.Compressor, err = flate.NewWriter(f, flate.DefaultCompression)
+		if err != nil {
+			return errors.New("ERROR: could not create compressor")
+		}
+	} else {
+		f.Compressor.Reset(f)
+	}
 
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)

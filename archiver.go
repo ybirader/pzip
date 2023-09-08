@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"unicode/utf8"
 
-	"github.com/klauspost/compress/flate"
 	"github.com/pkg/errors"
 	"github.com/pzip/pool"
 )
@@ -179,18 +178,14 @@ func (a *Archiver) compress(file *pool.File) error {
 		return nil
 	}
 
-	compressor, err := flate.NewWriter(file, defaultCompression)
-	if err != nil {
-		return errors.New("ERROR: could not create compressor")
-	}
 	hasher := crc32.NewIEEE()
 
-	err = a.copy(io.MultiWriter(compressor, hasher), file)
+	err = a.copy(io.MultiWriter(file.Compressor, hasher), file)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not read file %s", file.Path)
 	}
 
-	err = compressor.Close()
+	err = file.Compressor.Close()
 	if err != nil {
 		return errors.New("ERROR: could not close compressor")
 	}
