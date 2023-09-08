@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	minconcurrency = 1
+	minConcurrency = 1
 	capacity       = 1
 )
 
@@ -21,7 +21,7 @@ type FileWorkerPool struct {
 }
 
 func NewFileWorkerPool(concurrency int, executor func(f File) error) (*FileWorkerPool, error) {
-	if concurrency < minconcurrency {
+	if concurrency < minConcurrency {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 

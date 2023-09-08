@@ -3,7 +3,6 @@ package pool
 import (
 	"archive/zip"
 	"bytes"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -13,18 +12,12 @@ import (
 
 const defaultBufferSize = 2 * 1024 * 1024
 
-type Overflow interface {
-	io.ReadWriteSeeker
-	io.Closer
-	Name() string
-}
-
 type File struct {
 	Path           string
 	Info           fs.FileInfo
 	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
-	Overflow       Overflow
+	Overflow       *os.File
 	written        int64
 }
 
