@@ -21,12 +21,12 @@ var FilePool = sync.Pool{
 }
 
 type File struct {
-	Path           string
 	Info           fs.FileInfo
 	Header         *zip.FileHeader
 	CompressedData *bytes.Buffer
 	Overflow       *os.File
 	Compressor     *flate.Writer
+	Path           string
 	written        int64
 }
 
@@ -76,13 +76,13 @@ func (f *File) Write(p []byte) (n int, err error) {
 		if f.Overflow == nil {
 			f.Overflow, err = os.CreateTemp("", "pzip-overflow")
 			if err != nil {
-				return len(p), err
+				return len(p), errors.New("ERROR: could not create temp overflow directory")
 			}
 		}
 
 		_, err := f.Overflow.Write(p)
 		if err != nil {
-			return len(p), err
+			return len(p), errors.Errorf("ERROR: could not write to temp overflow directory for %s", f.Header.Name)
 		}
 		f.written += int64(len(p))
 	}
