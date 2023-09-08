@@ -13,20 +13,20 @@ const (
 )
 
 type FileWorkerPool struct {
-	tasks       chan File
-	executor    func(f File) error
+	tasks       chan *File
+	executor    func(f *File) error
 	g           *errgroup.Group
 	ctxCancel   func(error)
 	concurrency int
 }
 
-func NewFileWorkerPool(concurrency int, executor func(f File) error) (*FileWorkerPool, error) {
+func NewFileWorkerPool(concurrency int, executor func(f *File) error) (*FileWorkerPool, error) {
 	if concurrency < minConcurrency {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
 	return &FileWorkerPool{
-		tasks:       make(chan File, capacity),
+		tasks:       make(chan *File, capacity),
 		executor:    executor,
 		g:           new(errgroup.Group),
 		concurrency: concurrency,
@@ -51,7 +51,7 @@ func (f *FileWorkerPool) Start(ctx context.Context) {
 	}
 }
 
-func (f *FileWorkerPool) Enqueue(file File) {
+func (f *FileWorkerPool) Enqueue(file *File) {
 	f.tasks <- file
 }
 
@@ -79,5 +79,5 @@ func (f *FileWorkerPool) listen(ctx context.Context) error {
 }
 
 func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan File, capacity)
+	f.tasks = make(chan *File, capacity)
 }

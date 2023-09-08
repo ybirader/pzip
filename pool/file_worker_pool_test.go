@@ -12,18 +12,18 @@ import (
 
 func TestFileWorkerPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f pool.File) error { return nil })
+		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f *pool.File) error { return nil })
 		assert.NoError(t, err)
 		fileProcessPool.Start(context.Background())
 
-		fileProcessPool.Enqueue(pool.File{})
+		fileProcessPool.Enqueue(&pool.File{})
 
 		assert.Equal(t, 1, fileProcessPool.PendingFiles())
 	})
 
 	t.Run("has workers process files to completion", func(t *testing.T) {
 		output := bytes.Buffer{}
-		executor := func(_ pool.File) error {
+		executor := func(_ *pool.File) error {
 			output.WriteString("hello, world!")
 			return nil
 		}
@@ -32,7 +32,7 @@ func TestFileWorkerPool(t *testing.T) {
 		assert.NoError(t, err)
 		fileProcessPool.Start(context.Background())
 
-		fileProcessPool.Enqueue(pool.File{})
+		fileProcessPool.Enqueue(&pool.File{})
 
 		err = fileProcessPool.Close()
 
@@ -42,7 +42,7 @@ func TestFileWorkerPool(t *testing.T) {
 	})
 
 	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
-		executor := func(_ pool.File) error { return nil }
+		executor := func(_ *pool.File) error { return nil }
 
 		_, err := pool.NewFileWorkerPool(0, executor)
 		assert.Error(t, err)
@@ -50,7 +50,7 @@ func TestFileWorkerPool(t *testing.T) {
 
 	t.Run("can be closed and restarted", func(t *testing.T) {
 		output := bytes.Buffer{}
-		executor := func(_ pool.File) error {
+		executor := func(_ *pool.File) error {
 			output.WriteString("hello ")
 			return nil
 		}
@@ -59,12 +59,12 @@ func TestFileWorkerPool(t *testing.T) {
 		assert.NoError(t, err)
 
 		fileProcessPool.Start(context.Background())
-		fileProcessPool.Enqueue(pool.File{})
+		fileProcessPool.Enqueue(&pool.File{})
 		err = fileProcessPool.Close()
 		assert.NoError(t, err)
 
 		fileProcessPool.Start(context.Background())
-		fileProcessPool.Enqueue(pool.File{})
+		fileProcessPool.Enqueue(&pool.File{})
 		err = fileProcessPool.Close()
 
 		assert.NoError(t, err)
@@ -72,7 +72,7 @@ func TestFileWorkerPool(t *testing.T) {
 	})
 
 	t.Run("stops workers with first error encountered by a goroutine", func(t *testing.T) {
-		executor := func(file pool.File) error {
+		executor := func(file *pool.File) error {
 			if file.Path == "1" {
 				return errors.New("ERROR: file is corrupt")
 			}
@@ -85,9 +85,9 @@ func TestFileWorkerPool(t *testing.T) {
 
 		fileProcessPool.Start(context.Background())
 
-		fileProcessPool.Enqueue(pool.File{})
-		fileProcessPool.Enqueue(pool.File{})
-		fileProcessPool.Enqueue(pool.File{Path: "1"})
+		fileProcessPool.Enqueue(&pool.File{})
+		fileProcessPool.Enqueue(&pool.File{})
+		fileProcessPool.Enqueue(&pool.File{Path: "1"})
 
 		err = fileProcessPool.Close()
 

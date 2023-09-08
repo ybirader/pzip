@@ -37,8 +37,8 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		Concurrency: runtime.GOMAXPROCS(0),
 	}
 
-	fileProcessExecutor := func(file pool.File) error {
-		err := a.compress(&file)
+	fileProcessExecutor := func(file *pool.File) error {
+		err := a.compress(file)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not compress file %s", file.Path)
 		}
@@ -54,8 +54,8 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 	a.fileProcessPool = fileProcessPool
 
-	fileWriterExecutor := func(file pool.File) error {
-		err := a.archive(&file)
+	fileWriterExecutor := func(file *pool.File) error {
+		err := a.archive(file)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not write file %s to archive", file.Path)
 		}
@@ -123,7 +123,7 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-func (a *Archiver) ArchiveFile(file pool.File) {
+func (a *Archiver) ArchiveFile(file *pool.File) {
 	a.fileProcessPool.Enqueue(file)
 }
 

@@ -131,7 +131,7 @@ func TestCompress(t *testing.T) {
 		file, err := pool.NewFile(helloTxtFileFixture, info, "")
 		assert.NoError(t, err)
 
-		err = archiver.compress(&file)
+		err = archiver.compress(file)
 		assert.NoError(t, err)
 
 		assert.False(t, file.Overflowed())
@@ -158,7 +158,7 @@ func TestCompress(t *testing.T) {
 		bufCap := 5
 		file.CompressedData = *bytes.NewBuffer(make([]byte, 0, bufCap))
 
-		err = archiver.compress(&file)
+		err = archiver.compress(file)
 		assert.NoError(t, err)
 
 		assert.Equal(t, file.CompressedData.Len(), bufCap)
@@ -179,7 +179,7 @@ func TestCompress(t *testing.T) {
 		file, err := pool.NewFile(filePath, info, helloDirectoryFixture)
 		assert.NoError(t, err)
 
-		err = archiver.compress(&file)
+		err = archiver.compress(file)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello/nested/", file.Header.Name)

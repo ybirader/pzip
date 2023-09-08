@@ -15,19 +15,19 @@ const defaultBufferSize = 2 * 1024 * 1024
 type File struct {
 	Path           string
 	Info           fs.FileInfo
-	CompressedData bytes.Buffer
 	Header         *zip.FileHeader
+	CompressedData bytes.Buffer
 	Overflow       *os.File
 	written        int64
 }
 
-func NewFile(path string, info fs.FileInfo, relativeTo string) (File, error) {
+func NewFile(path string, info fs.FileInfo, relativeTo string) (*File, error) {
 	hdr, err := zip.FileInfoHeader(info)
 	if err != nil {
-		return File{}, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
+		return nil, errors.Errorf("ERROR: could not get file info header for %s: %v", path, err)
 	}
 
-	f := File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
+	f := &File{Path: path, Info: info, Header: hdr, CompressedData: *bytes.NewBuffer(make([]byte, 0, defaultBufferSize))}
 	if relativeTo != "" {
 		f.setNameRelativeTo(relativeTo)
 	}
