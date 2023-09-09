@@ -212,17 +212,3 @@ func assertGreaterThan(t testing.TB, a, b int64) {
 		t.Fatalf("expected %d to be greater than %d", a, b)
 	}
 }
-
-func BenchmarkArchive(b *testing.B) {
-	archive, cleanup := testutils.CreateTempArchive(b, archivePath)
-	defer cleanup()
-
-	archiver, err := NewArchiver(archive)
-	assert.NoError(b, err)
-	defer archiver.Close()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		archiver.Archive(context.Background(), []string{helloDirectoryFixture})
-	}
-}
