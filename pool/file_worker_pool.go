@@ -9,8 +9,12 @@ import (
 
 const (
 	minConcurrency = 1
-	capacity       = 1
 )
+
+type Config struct {
+	Concurrency int
+	Capacity    int
+}
 
 type FileWorkerPool struct {
 	tasks       chan *File
@@ -18,18 +22,20 @@ type FileWorkerPool struct {
 	g           *errgroup.Group
 	ctxCancel   func(error)
 	concurrency int
+	capacity    int
 }
 
-func NewFileWorkerPool(concurrency int, executor func(f *File) error) (*FileWorkerPool, error) {
-	if concurrency < minConcurrency {
+func NewFileWorkerPool(executor func(f *File) error, config *Config) (*FileWorkerPool, error) {
+	if config.Concurrency < minConcurrency {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
 	return &FileWorkerPool{
-		tasks:       make(chan *File, capacity),
+		tasks:       make(chan *File, config.Capacity),
 		executor:    executor,
 		g:           new(errgroup.Group),
-		concurrency: concurrency,
+		concurrency: config.Concurrency,
+		capacity:    config.Capacity,
 	}, nil
 }
 
@@ -79,5 +85,5 @@ func (f *FileWorkerPool) listen(ctx context.Context) error {
 }
 
 func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan *File, capacity)
+	f.tasks = make(chan *File, f.capacity)
 }

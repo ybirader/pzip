@@ -12,7 +12,7 @@ import (
 
 func TestFileWorkerPool(t *testing.T) {
 	t.Run("can enqueue tasks", func(t *testing.T) {
-		fileProcessPool, err := pool.NewFileWorkerPool(1, func(f *pool.File) error { return nil })
+		fileProcessPool, err := pool.NewFileWorkerPool(func(f *pool.File) error { return nil }, &pool.Config{Concurrency: 1, Capacity: 1})
 		assert.NoError(t, err)
 		fileProcessPool.Start(context.Background())
 
@@ -28,7 +28,7 @@ func TestFileWorkerPool(t *testing.T) {
 			return nil
 		}
 
-		fileProcessPool, err := pool.NewFileWorkerPool(1, executor)
+		fileProcessPool, err := pool.NewFileWorkerPool(executor, &pool.Config{Concurrency: 1, Capacity: 1})
 		assert.NoError(t, err)
 		fileProcessPool.Start(context.Background())
 
@@ -44,7 +44,7 @@ func TestFileWorkerPool(t *testing.T) {
 	t.Run("returns an error if number of workers is less than one", func(t *testing.T) {
 		executor := func(_ *pool.File) error { return nil }
 
-		_, err := pool.NewFileWorkerPool(0, executor)
+		_, err := pool.NewFileWorkerPool(executor, &pool.Config{Concurrency: 0, Capacity: 1})
 		assert.Error(t, err)
 	})
 
@@ -55,7 +55,7 @@ func TestFileWorkerPool(t *testing.T) {
 			return nil
 		}
 
-		fileProcessPool, err := pool.NewFileWorkerPool(1, executor)
+		fileProcessPool, err := pool.NewFileWorkerPool(executor, &pool.Config{Concurrency: 1, Capacity: 1})
 		assert.NoError(t, err)
 
 		fileProcessPool.Start(context.Background())
@@ -80,7 +80,7 @@ func TestFileWorkerPool(t *testing.T) {
 			return nil
 		}
 
-		fileProcessPool, err := pool.NewFileWorkerPool(2, executor)
+		fileProcessPool, err := pool.NewFileWorkerPool(executor, &pool.Config{Concurrency: 2, Capacity: 1})
 		assert.NoError(t, err)
 
 		fileProcessPool.Start(context.Background())

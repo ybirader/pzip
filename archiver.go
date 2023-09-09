@@ -57,7 +57,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		return nil
 	}
 
-	fileProcessPool, err := pool.NewFileWorkerPool(a.Concurrency, fileProcessExecutor)
+	fileProcessPool, err := pool.NewFileWorkerPool(fileProcessExecutor, &pool.Config{Concurrency: a.Concurrency, Capacity: 1})
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
 	}
@@ -72,7 +72,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		return nil
 	}
 
-	fileWriterPool, err := pool.NewFileWorkerPool(sequentialWrites, fileWriterExecutor)
+	fileWriterPool, err := pool.NewFileWorkerPool(fileWriterExecutor, &pool.Config{Concurrency: sequentialWrites, Capacity: 1})
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file writer pool")
 	}
