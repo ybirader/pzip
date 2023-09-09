@@ -31,19 +31,20 @@ var bufferPool = sync.Pool{
 	},
 }
 
-type Archiver struct {
-	Dest            *os.File
-	Concurrency     int
+type archiver struct {
+	dest            *os.File
+	concurrency     int
 	w               *zip.Writer
 	fileProcessPool pool.WorkerPool[pool.File]
 	fileWriterPool  pool.WorkerPool[pool.File]
 	chroot          string
 }
 
-func NewArchiver(archive *os.File) (*Archiver, error) {
-	a := &Archiver{Dest: archive,
+func NewArchiver(archive *os.File, options ...option) (*archiver, error) {
+	a := &archiver{
+		dest:        archive,
 		w:           zip.NewWriter(archive),
-		Concurrency: runtime.GOMAXPROCS(0),
+		concurrency: runtime.GOMAXPROCS(0),
 	}
 
 	fileProcessExecutor := func(file *pool.File) error {
@@ -57,7 +58,7 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 		return nil
 	}
 
-	fileProcessPool, err := pool.NewFileWorkerPool(fileProcessExecutor, &pool.Config{Concurrency: a.Concurrency, Capacity: 1})
+	fileProcessPool, err := pool.NewFileWorkerPool(fileProcessExecutor, &pool.Config{Concurrency: a.concurrency, Capacity: 1})
 	if err != nil {
 		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
 	}
@@ -78,10 +79,17 @@ func NewArchiver(archive *os.File) (*Archiver, error) {
 	}
 	a.fileWriterPool = fileWriterPool
 
+	for _, option := range options {
+		err = option(a)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return a, nil
 }
 
-func (a *Archiver) Archive(ctx context.Context, filePaths []string) error {
+func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 	a.fileProcessPool.Start(ctx)
 	a.fileWriterPool.Start(ctx)
 
@@ -118,7 +126,7 @@ func (a *Archiver) Archive(ctx context.Context, filePaths []string) error {
 	return nil
 }
 
-func (a *Archiver) ArchiveDir(root string) error {
+func (a *archiver) ArchiveDir(root string) error {
 	err := a.changeRoot(root)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not set chroot of archive to %s", root)
@@ -132,11 +140,11 @@ func (a *Archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-func (a *Archiver) ArchiveFile(file *pool.File) {
+func (a *archiver) ArchiveFile(file *pool.File) {
 	a.fileProcessPool.Enqueue(file)
 }
 
-func (a *Archiver) Close() error {
+func (a *archiver) Close() error {
 	err := a.w.Close()
 	if err != nil {
 		return errors.New("ERROR: could not close archiver")
@@ -145,7 +153,7 @@ func (a *Archiver) Close() error {
 	return nil
 }
 
-func (a *Archiver) changeRoot(root string) error {
+func (a *archiver) changeRoot(root string) error {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return errors.Errorf("ERROR: could not determine absolute path of %s", root)
@@ -155,7 +163,7 @@ func (a *Archiver) changeRoot(root string) error {
 	return nil
 }
 
-func (a *Archiver) walkDir() error {
+func (a *archiver) walkDir() error {
 	err := filepath.Walk(a.chroot, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -177,7 +185,7 @@ func (a *Archiver) walkDir() error {
 	return nil
 }
 
-func (a *Archiver) compress(file *pool.File) error {
+func (a *archiver) compress(file *pool.File) error {
 	var err error
 
 	if file.Info.IsDir() {
@@ -209,7 +217,7 @@ func (a *Archiver) compress(file *pool.File) error {
 	return nil
 }
 
-func (a *Archiver) copy(w io.Writer, file *pool.File) error {
+func (a *archiver) copy(w io.Writer, file *pool.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
 		return errors.Errorf("ERROR: could not open file %s", file.Path)
@@ -227,7 +235,7 @@ func (a *Archiver) copy(w io.Writer, file *pool.File) error {
 	return nil
 }
 
-func (a *Archiver) populateHeader(file *pool.File) error {
+func (a *archiver) populateHeader(file *pool.File) error {
 	header := file.Header
 
 	utf8ValidName, utf8RequireName := detectUTF8(header.Name)
@@ -267,7 +275,7 @@ func (a *Archiver) populateHeader(file *pool.File) error {
 	return nil
 }
 
-func (a *Archiver) archive(file *pool.File) error {
+func (a *archiver) archive(file *pool.File) error {
 	fileWriter, err := a.w.CreateRaw(file.Header)
 	if err != nil {
 		return errors.Errorf("ERROR: could not write raw header for %s", file.Path)
