@@ -1,9 +1,12 @@
 package main_test
 
 import (
+	"fmt"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
+	"github.com/alecthomas/assert/v2"
 	"github.com/pzip/adapters/cli"
 	"github.com/pzip/specifications"
 )
@@ -14,12 +17,35 @@ const (
 	dirPath      = testdataRoot + "/hello"
 )
 
+// finish inital cli
+
+// Tests
+
+// writes message when no arguments (handles no args)
+// handles std usage pzip archive ...srcdirs
+// handles one arg only
+// handles -r, --recursive flag
+// handles --concurrency, -c flag
+// handles sigterm/signint i.e. control c being pressed- should cancel context
+
+// should output descriptions
+
 func TestPzip(t *testing.T) {
 	binPath, cleanup, err := cli.BuildBinary()
 	if err != nil {
 		t.Fatal("ERROR: could not build binary", err)
 	}
 	t.Cleanup(cleanup)
+
+	t.Run("outputs usage to stderr when no arguments or flags provided", func(t *testing.T) {
+		pzip := exec.Command(binPath)
+		out := getOutput(t, pzip)
+
+		fmt.Println(out)
+
+		assert.Contains(t, out, "pzip is a tool for archiving files concurrently\n")
+		assert.Contains(t, out, "Usage")
+	})
 	t.Run("archives directory", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip()
@@ -39,4 +65,13 @@ func TestPzip(t *testing.T) {
 
 		specifications.ArchiveDir(t, driver)
 	})
+}
+
+func getOutput(t testing.TB, cmd *exec.Cmd) string {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal("ERROR: could not get output of cmd", string(out), err)
+	}
+
+	return string(out)
 }
