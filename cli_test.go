@@ -3,6 +3,7 @@ package pzip_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -18,7 +19,7 @@ func TestCLI(t *testing.T) {
 		archivePath := "testdata/archive.zip"
 		defer os.RemoveAll(archivePath)
 
-		cli := pzip.CLI{archivePath, files}
+		cli := pzip.CLI{archivePath, files, runtime.GOMAXPROCS(0)}
 		cli.Archive()
 
 		archiveReader := testutils.GetArchiveReader(t, archivePath)
@@ -32,7 +33,7 @@ func BenchmarkCLI(b *testing.B) {
 	dirPath := filepath.Join(benchmarkRoot, "minibench")
 	archivePath := filepath.Join(benchmarkRoot, "minibench.zip")
 
-	cli := pzip.CLI{archivePath, []string{dirPath}}
+	cli := pzip.CLI{archivePath, []string{dirPath}, runtime.GOMAXPROCS(0)}
 
 	b.ReportAllocs()
 	b.ResetTimer()

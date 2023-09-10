@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 
 	"github.com/pzip"
 )
@@ -18,6 +19,9 @@ func main() {
 		flag.PrintDefaults()
 	}
 
+	var concurrency int
+	flag.IntVar(&concurrency, "concurrency", runtime.GOMAXPROCS(0), "allow up to n compression routines")
+
 	flag.Parse()
 
 	args := flag.Args()
@@ -30,9 +34,7 @@ func main() {
 		return
 	}
 
-	archivePath := os.Args[1]
-
-	cli := pzip.CLI{ArchivePath: archivePath, Files: os.Args[2:]}
+	cli := pzip.CLI{ArchivePath: args[0], Files: args[1:], Concurrency: concurrency}
 	err := cli.Archive()
 
 	if err != nil {

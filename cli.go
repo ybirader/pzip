@@ -10,6 +10,7 @@ import (
 type CLI struct {
 	ArchivePath string
 	Files       []string
+	Concurrency int
 }
 
 func (c *CLI) Archive() error {
@@ -19,7 +20,7 @@ func (c *CLI) Archive() error {
 	}
 	defer archive.Close()
 
-	archiver, err := NewArchiver(archive)
+	archiver, err := NewArchiver(archive, Concurrency(c.Concurrency))
 	if err != nil {
 		return errors.Wrap(err, "ERROR: could not create archiver")
 	}
