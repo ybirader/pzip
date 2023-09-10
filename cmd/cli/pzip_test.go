@@ -1,7 +1,6 @@
 package main_test
 
 import (
-	"fmt"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -41,11 +40,17 @@ func TestPzip(t *testing.T) {
 		pzip := exec.Command(binPath)
 		out := getOutput(t, pzip)
 
-		fmt.Println(out)
-
-		assert.Contains(t, out, "pzip is a tool for archiving files concurrently\n")
+		assert.Contains(t, out, "pzip is a tool for archiving files concurrently.\n")
 		assert.Contains(t, out, "Usage")
 	})
+
+	t.Run("outputs error when only one argument passed", func(t *testing.T) {
+		pzip := exec.Command(binPath, "archive.zip")
+		out := getOutput(t, pzip)
+
+		assert.Contains(t, out, "pzip error: invalid usage\n")
+	})
+
 	t.Run("archives directory", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip()
