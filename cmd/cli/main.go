@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 
 	"github.com/pzip"
@@ -35,9 +37,15 @@ func main() {
 	}
 
 	cli := pzip.CLI{ArchivePath: args[0], Files: args[1:], Concurrency: concurrency}
-	err := cli.Archive()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
 
+	err := cli.Archive(ctx)
 	if err != nil {
+		os.RemoveAll(cli.ArchivePath)
 		log.Fatal(err)
 	}
 }

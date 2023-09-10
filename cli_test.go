@@ -1,6 +1,7 @@
 package pzip_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,7 +21,7 @@ func TestCLI(t *testing.T) {
 		defer os.RemoveAll(archivePath)
 
 		cli := pzip.CLI{archivePath, files, runtime.GOMAXPROCS(0)}
-		cli.Archive()
+		cli.Archive(context.Background())
 
 		archiveReader := testutils.GetArchiveReader(t, archivePath)
 		defer archiveReader.Close()
@@ -39,6 +40,6 @@ func BenchmarkCLI(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cli.Archive()
+		cli.Archive(context.Background())
 	}
 }

@@ -16,19 +16,6 @@ const (
 	dirPath      = testdataRoot + "/hello"
 )
 
-// finish inital cli
-
-// Tests
-
-// writes message when no arguments (handles no args)
-// handles std usage pzip archive ...srcdirs
-// handles one arg only
-// handles -r, --recursive flag
-// handles --concurrency, -c flag
-// handles sigterm/signint i.e. control c being pressed- should cancel context
-
-// should output descriptions
-
 func TestPzip(t *testing.T) {
 	binPath, cleanup, err := cli.BuildBinary()
 	if err != nil {

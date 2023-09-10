@@ -13,7 +13,7 @@ type CLI struct {
 	Concurrency int
 }
 
-func (c *CLI) Archive() error {
+func (c *CLI) Archive(ctx context.Context) error {
 	archive, err := os.Create(c.ArchivePath)
 	if err != nil {
 		return errors.Errorf("ERROR: could not create archive at %s", c.ArchivePath)
@@ -26,7 +26,7 @@ func (c *CLI) Archive() error {
 	}
 	defer archiver.Close()
 
-	err = archiver.Archive(context.Background(), c.Files)
+	err = archiver.Archive(ctx, c.Files)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not archive files")
 	}
