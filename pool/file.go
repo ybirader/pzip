@@ -20,6 +20,7 @@ var FilePool = sync.Pool{
 	},
 }
 
+// A File refers to a file-backed buffer
 type File struct {
 	Info           fs.FileInfo
 	Header         *zip.FileHeader
@@ -36,6 +37,7 @@ func NewFile(path string, info fs.FileInfo, relativeTo string) (*File, error) {
 	return f, err
 }
 
+// Reset resets the file-backed buffer ready to be used by another file.
 func (f *File) Reset(path string, info fs.FileInfo, relativeTo string) error {
 	hdr, err := zip.FileInfoHeader(info)
 	if err != nil {
@@ -90,10 +92,13 @@ func (f *File) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// Written returns the number of bytes of the file compressed and written to a destination
 func (f *File) Written() int64 {
 	return f.written
 }
 
+// Overflowed returns true if the compressed contents of the file was too large to fit in the in-memory buffer.
+// The oveflowed contents are written to a temporary file.
 func (f *File) Overflowed() bool {
 	return f.Overflow != nil
 }

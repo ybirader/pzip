@@ -40,6 +40,8 @@ type archiver struct {
 	chroot          string
 }
 
+// NewArchiver returns a new pzip archiver. The archiver can be configured by passing in a number of options.
+// Available options include Concurrency(n int). It returns an error if the archiver can't be created
 func NewArchiver(archive *os.File, options ...option) (*archiver, error) {
 	a := &archiver{
 		dest:        archive,
@@ -89,6 +91,9 @@ func NewArchiver(archive *os.File, options ...option) (*archiver, error) {
 	return a, nil
 }
 
+// Archive compresses and stores (archives) the files at the provides filePaths to
+// the corresponding archive registered with the archiver. Archiving is canceled when the
+// associated ctx is canceled. The first error that arises during archiving is returned.
 func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 	a.fileProcessPool.Start(ctx)
 	a.fileWriterPool.Start(ctx)
@@ -100,7 +105,7 @@ func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 		}
 
 		if info.IsDir() {
-			err = a.ArchiveDir(path)
+			err = a.archiveDir(path)
 		} else {
 			a.chroot = ""
 			file, err := pool.NewFile(path, info, "")
@@ -108,7 +113,7 @@ func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 			}
 
-			a.ArchiveFile(file)
+			a.archiveFile(file)
 		}
 
 		if err != nil {
@@ -126,7 +131,7 @@ func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 	return nil
 }
 
-func (a *archiver) ArchiveDir(root string) error {
+func (a *archiver) archiveDir(root string) error {
 	err := a.changeRoot(root)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not set chroot of archive to %s", root)
@@ -140,7 +145,7 @@ func (a *archiver) ArchiveDir(root string) error {
 	return nil
 }
 
-func (a *archiver) ArchiveFile(file *pool.File) {
+func (a *archiver) archiveFile(file *pool.File) {
 	a.fileProcessPool.Enqueue(file)
 }
 
@@ -173,7 +178,7 @@ func (a *archiver) walkDir() error {
 		if err != nil {
 			return errors.Wrapf(err, "ERROR: could not create new file %s", path)
 		}
-		a.ArchiveFile(file)
+		a.archiveFile(file)
 
 		return nil
 	})

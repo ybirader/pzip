@@ -10,6 +10,8 @@ var (
 
 type option func(*archiver) error
 
+// Concurrency sets the number of goroutines used during archiving
+// An error is returned if n is less than 1.
 func Concurrency(n int) option {
 	return func(a *archiver) error {
 		if n < minConcurrency {
