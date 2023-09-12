@@ -1,0 +1,78 @@
+project_name: pzip
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+- env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+  main: ./cmd/cli/
+  binary: pzip
+  goos:
+    - linux
+    - windows
+    - darwin
+    - freebsd
+  goarch:
+    - amd64
+    - arm64
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+    - goos: windows
+      format: zip
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+checksum:
+  name_template: 'checksum.txt'
+
+signs:
+  - artifacts: checksum
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs?:'
+      - '^tests?:'
+      - '^readme:'
+
+nfpms:
+  - id: default
+    package_name: pzip
+    maintainer: Yusuf Birader <ybirader@users.noreply.github.com>
+    description: |
+      pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
+    license: MIT
+    formats:
+      - deb
+    bindir: /usr/bin
+
+
+release:
+  github:
+    owner: ybirader
+    name: pzip
+  draft: true
+  prerelease: auto
+
+brews:
+  - name: pzip
+    description: "pzip, short for parallel-zip, is a blazing fast concurrent zip archiver."
+    license: MIT
+    repository:
+      name: homebrew-pzip
+      owner: ybirader

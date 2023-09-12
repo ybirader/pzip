@@ -1,4 +1,14 @@
 todos.txt
+
+# internal benchmarking and profiling artifacts
 benchmarks.txt
 benchmark
 profiles
+
+# mac specific
+.DS_Store
+
+# goreleaser artifacts
+dist
+pzip-build
+pzip-dist
