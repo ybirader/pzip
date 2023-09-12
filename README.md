@@ -83,5 +83,7 @@ Upcoming features:
 - add flag to support skipping compression i.e. --skip-suffixes
 - add ability to register different compressors
 
+## License
 
+pzip is released under the [MIT License](https://opensource.org/license/mit/).
 
