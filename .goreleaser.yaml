@@ -57,7 +57,7 @@ nfpms:
     maintainer: Yusuf Birader <ybirader@users.noreply.github.com>
     description: |
       pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
-    license: MIT
+    license: Apache 2.0
     formats:
       - deb
     bindir: /usr/bin
@@ -73,7 +73,7 @@ release:
 brews:
   - name: pzip
     description: "pzip, short for parallel-zip, is a blazing fast concurrent zip archiver."
-    license: MIT
+    license: Apache 2.0
     repository:
       name: homebrew-pzip
       owner: ybirader
