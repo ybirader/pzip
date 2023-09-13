@@ -19,7 +19,10 @@ To install pzip, run:
 
 ### Debian, Ubuntu, Raspbian
 
+For the latest stable release*:
+
 ```
+curl -1sLf 'https://dl.cloudsmith.io/public/pzip/stable/setup.deb.sh' | sudo -E bash
 sudo apt update
 sudo apt install pzip
 ```
@@ -104,4 +107,8 @@ To contribute to pzip, first submit or comment in an issue to discuss your contr
 ## License
 
 pzip is released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
+
+## Acknowledgements
+
+Many thanks to the folks at [Cloudsmith](https://cloudsmith.com) for graciously providing Debian package hosting. Cloudsmith is the only fully hosted, cloud-native, universal package management solution, that enables your organization to create, store and share packages in any format, to any place, with total confidence.
 
