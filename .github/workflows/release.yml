@@ -29,6 +29,8 @@ jobs:
         with:
           go-version: ${{ matrix.GO_SEMVER }}
           check-latest: true
+      - name: Install Cloudsmith CLI
+        run: pip install --upgrade cloudsmith-cli
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -36,5 +38,15 @@ jobs:
           args: release --clean --timeout 30m
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          TAG: ${{ steps.vars.outputs.version_tag }}
+      - name: Publish .deb to Cloudsmith
+        if: ${{ steps.vars.output.tag_special == '' }}
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+        run: |
+          for filename in dist/*.deb; do
+            echo "Pushing $filename to 'stable'"
+            cloudsmith push deb pzip/stable/any-distro/any-version $filename
+          done
 
 
