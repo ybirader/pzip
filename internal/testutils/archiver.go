@@ -28,7 +28,7 @@ func GetFileInfo(t testing.TB, name string) fs.FileInfo {
 	t.Helper()
 
 	info, err := os.Stat(name)
-	assert.NoError(t, err, fmt.Sprintf("could not get file into fot %s", name))
+	assert.NoError(t, err, fmt.Sprintf("could not get file info for %s", name))
 
 	return info
 }

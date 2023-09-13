@@ -24,7 +24,8 @@ func TestCLI(t *testing.T) {
 		defer os.RemoveAll(archivePath)
 
 		cli := pzip.CLI{archivePath, files, runtime.GOMAXPROCS(0)}
-		cli.Archive(context.Background())
+		err := cli.Archive(context.Background())
+		assert.NoError(t, err)
 
 		archiveReader := testutils.GetArchiveReader(t, archivePath)
 		defer archiveReader.Close()

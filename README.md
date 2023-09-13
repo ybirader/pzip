@@ -76,7 +76,7 @@ The concurrency of the archiver can be configured using the corresponding flag:
 pzip --concurrency 2 /path/to/compressed.zip path/to/file_or_directory1 path/to/file_or_directory2 ... path/to/file_or_directoryN
 
 ```
-or by using passing the `Concurrency` option:
+or by passing the `Concurrency` option:
 ```go
 archiver, err := pzip.NewArchiver(archive, Concurrency(2))
 ```
