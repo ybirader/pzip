@@ -131,6 +131,15 @@ func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 	return nil
 }
 
+func (a *archiver) Close() error {
+	err := a.w.Close()
+	if err != nil {
+		return errors.New("ERROR: could not close archiver")
+	}
+
+	return nil
+}
+
 func (a *archiver) archiveDir(root string) error {
 	err := a.changeRoot(root)
 	if err != nil {
@@ -147,15 +156,6 @@ func (a *archiver) archiveDir(root string) error {
 
 func (a *archiver) archiveFile(file *pool.File) {
 	a.fileProcessPool.Enqueue(file)
-}
-
-func (a *archiver) Close() error {
-	err := a.w.Close()
-	if err != nil {
-		return errors.New("ERROR: could not close archiver")
-	}
-
-	return nil
 }
 
 func (a *archiver) changeRoot(root string) error {

@@ -48,6 +48,7 @@ nfpms:
   - id: default
     package_name: pzip
     maintainer: Yusuf Birader <ybirader@users.noreply.github.com>
+    homepage: https://github.com/ybirader/pzip
     description: |
       pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
     license: Apache 2.0
@@ -67,6 +68,7 @@ brews:
   - name: pzip
     description: "pzip, short for parallel-zip, is a blazing fast concurrent zip archiver."
     license: Apache 2.0
+    homepage: https://github.com/ybirader/pzip
     repository:
       name: homebrew-pzip
       owner: ybirader
