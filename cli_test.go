@@ -12,7 +12,10 @@ import (
 	"github.com/pzip/internal/testutils"
 )
 
-const benchmarkRoot = "testdata/benchmark"
+const (
+	benchmarkRoot = "testdata/benchmark"
+	benchmarkDir  = "minibench" // modify this to match the file/directory you want to benchmark
+)
 
 func TestCLI(t *testing.T) {
 	t.Run("archives a directory and some files", func(t *testing.T) {
@@ -30,9 +33,10 @@ func TestCLI(t *testing.T) {
 	})
 }
 
+// BenchmarkCLI benchmarks the archiving of a file/directory, referenced by benchmarkDir in the benchmarkRoot directory
 func BenchmarkCLI(b *testing.B) {
-	dirPath := filepath.Join(benchmarkRoot, "minibench")
-	archivePath := filepath.Join(benchmarkRoot, "minibench.zip")
+	dirPath := filepath.Join(benchmarkRoot, benchmarkDir)
+	archivePath := filepath.Join(benchmarkRoot, benchmarkDir+".zip")
 
 	cli := pzip.CLI{archivePath, []string{dirPath}, runtime.GOMAXPROCS(0)}
 

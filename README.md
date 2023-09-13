@@ -1,27 +1,49 @@
+![logo-5](https://github.com/ybirader/pzip/assets/68111562/0b3cee2c-1af0-4753-b088-8a488f8ff642)
+
 # pzip
 pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
 
 ## Features
 
-- Archives files and directories into a valid zip archive, using DEFLATE
+- Archives files and directories into a valid zip archive, using DEFLATE.
 - Preserves modification times of files.
 - Files are read and compressed concurrently
 
-### Installation
+## Installation
 
-To install pzip, run `brew install pzip` [TODO: Add brew package]
+To install pzip, run:
 
-You can also use pzip as a library by importing the go package:
+### macOS
+
+ `brew install ybirader/pzip/pzip`
+
+### Debian, Ubuntu, Raspbian
+
+```
+sudo apt update
+sudo apt install pzip
+```
+
+### Go
+
+Alternatively, if you have Go installed:
 ```
 go install github.com/ybirader/pzip
 ```
 
-### Usage
+### Build from source
 
-pzip's API has been designed to mimic the standard zip utlity found on most *-nix systems.
+To build from source, we require Go 1.21 or newer.
+
+1. Clone the repository by running `git clone "https://github.com/ybirader/pzip.git"`
+2. Build by running `make build` or `cd cmd/cli && go build`
+
+## Usage
+
+pzip's API is similar to that of the standard zip utlity found on most *-nix systems.
 
 ```
-pzip /path/to/compressed.zip path/to/file_or_directory
+pzip /path/to/compressed.zip path/to/file_or_directory1 path/to/file_or_directory2 ... path/to/file_or_directoryN
 ```
 
 Alternatively, pzip can be imported as a library
@@ -46,44 +68,40 @@ if err != nil {
 }
 ```
 
+The concurrency of the archiver can be configured using the corresponding flag:
+```
+pzip --concurrency 2 /path/to/compressed.zip path/to/file_or_directory1 path/to/file_or_directory2 ... path/to/file_or_directoryN
+
+```
+or by using passing the `Concurrency` option:
+```go
+archiver, err := pzip.NewArchiver(archive, Concurrency(2))
+```
 
 ### Benchmarks
 
-We use Matt Mahoney's [sample directory](https://mattmahoney.net/dc/10gb.html) in our benchmark
+pzip was benchmarked using Matt Mahoney's [sample directory](https://mattmahoney.net/dc/10gb.html).
 
-Using the standard `zip` utlity found on most *nix systems, we get the following time to archive:
+Using the standard `zip` utlity, we get the following time to archive:
 ```
 real    14m31.809s
 user    13m12.833s
 sys     0m24.193s
 ```
 
-The size of the resulting archive is 4.51 GB
-
 Running the same benchmark with pzip, we find that:
 
 ```
-goos: darwin
-goarch: amd64
-pkg: github.com/pzip/cmd/cli
-cpu: Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
-BenchmarkPzip-8                1        81600764936 ns/op           7928 B/op         32 allocs/op
-PASS
-ok      github.com/pzip/cmd/cli 83.847s
+real    0m56.851s
+user    3m32.619s
+sys     1m25.040s
 ```
 
-The size of the resulting zip was slightly larger at: 4.62 GB.
+## Contributing
 
-Overall, this is over 10x faster! And this is with no optimizations for memory etc.
-
-Upcoming features:
-
-- add flag to maintain unix file permissions i.e. mode of original file
-- add support for symbolic links
-- add flag to support skipping compression i.e. --skip-suffixes
-- add ability to register different compressors
+To contribute to pzip, first submit or comment in an issue to discuss your contribution, then open a pull request (PR).
 
 ## License
 
-pzip is released under the [MIT License](https://opensource.org/license/mit/).
+pzip is released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
 
