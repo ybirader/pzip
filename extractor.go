@@ -29,13 +29,16 @@ func (e *Extractor) Extract(archivePath string) (err error) {
 	}()
 
 	for _, file := range archiveReader.File {
-		e.extractFile(file)
+		err = e.extractFile(file)
+		if err != nil {
+			return derrors.Wrapf(err, "ERROR: could not extract file %s", file.Name)
+		}
 	}
 
 	return err
 }
 
-func (e *Extractor) extractFile(file *zip.File) error {
+func (e *Extractor) extractFile(file *zip.File) (err error) {
 	pathRelativeToRoot := e.relativeToOutputDir(file.Name)
 
 	if e.isDir(file.Name) {
@@ -48,11 +51,19 @@ func (e *Extractor) extractFile(file *zip.File) error {
 		if err != nil {
 			return derrors.Errorf("ERROR: could not create file %s: %v", pathRelativeToRoot, err)
 		}
-		defer outputFile.Close()
+		defer func() {
+			err = errors.Join(err, outputFile.Close())
+		}()
 
 		fileContent, _ := file.Open()
-		defer fileContent.Close()
-		io.Copy(outputFile, fileContent)
+		defer func() {
+			err = errors.Join(err, fileContent.Close())
+		}()
+
+		_, err = io.Copy(outputFile, fileContent)
+		if err != nil {
+			return derrors.Errorf("ERROR: could not decompress file %s", file.Name)
+		}
 	}
 
 	return nil
