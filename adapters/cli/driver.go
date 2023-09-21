@@ -30,3 +30,11 @@ func (d *Driver) Archive() {
 		log.Fatal("ERROR: could not run pzip binary", err)
 	}
 }
+
+func (d *Driver) Extract() {
+	punzip := exec.Command(d.binPath, d.ArchivePath())
+
+	if err := punzip.Run(); err != nil {
+		log.Fatal("ERROR: could not run punzip binary", err)
+	}
+}

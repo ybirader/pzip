@@ -55,7 +55,7 @@ func TestPzip(t *testing.T) {
 
 		driver := cli.NewDriver(binPath, absArchivePath, absDirPath)
 
-		specifications.ArchiveDir(t, driver)
+		specifications.Archive(t, driver)
 	})
 }
 

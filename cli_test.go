@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	benchmarkRoot = "testdata/benchmark"
-	benchmarkDir  = "minibench" // modify this to match the file/directory you want to benchmark
+	benchmarkRoot            = "testdata/benchmark"
+	benchmarkDir             = "minibench" // modify this to match the file/directory you want to benchmark
+	testArchiveDirectoryName = "hello"
 )
 
 func TestArchiverCLI(t *testing.T) {
@@ -40,7 +41,7 @@ func TestExtractorCLI(t *testing.T) {
 		dirPath := "testdata/test"
 		err := os.Mkdir(dirPath, 0755)
 		assert.NoError(t, err)
-		outputDir := filepath.Join(dirPath, "hello")
+		outputDir := filepath.Join(dirPath, testArchiveDirectoryName)
 		defer os.RemoveAll(dirPath)
 
 		cli := pzip.ExtractorCLI{archivePath, dirPath}
@@ -51,8 +52,8 @@ func TestExtractorCLI(t *testing.T) {
 	})
 }
 
-// BenchmarkCLI benchmarks the archiving of a file/directory, referenced by benchmarkDir in the benchmarkRoot directory
-func BenchmarkCLI(b *testing.B) {
+// BenchmarkArchiverCLI benchmarks the archiving of a file/directory, referenced by benchmarkDir in the benchmarkRoot directory
+func BenchmarkArchiverCLI(b *testing.B) {
 	dirPath := filepath.Join(benchmarkRoot, benchmarkDir)
 	archivePath := filepath.Join(benchmarkRoot, benchmarkDir+".zip")
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
@@ -62,4 +63,38 @@ func Find[T any](elements []T, cb func(element T) bool) (T, bool) {
 	}
 
 	return *new(T), false
+}
+
+func GetAllFiles(t testing.TB, dirPath string) []fs.FileInfo {
+	var result []fs.FileInfo
+
+	err := filepath.Walk(dirPath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if dirPath == path {
+			return nil
+		}
+
+		result = append(result, info)
+
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("could not walk directory %s: %v", dirPath, err)
+	}
+
+	return result
+}
+
+func Map[T, K any](elements []T, cb func(element T) K) []K {
+	results := make([]K, len(elements))
+
+	for i, element := range elements {
+		results[i] = cb(element)
+	}
+
+	return results
 }
