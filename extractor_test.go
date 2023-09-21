@@ -20,7 +20,8 @@ func TestExtract(t *testing.T) {
 		defer os.RemoveAll(outputDirPath)
 
 		extractor := NewExtractor(outputDirPath)
-		extractor.Extract(testArchiveFixture)
+		err = extractor.Extract(testArchiveFixture)
+		assert.NoError(t, err)
 
 		files, err := os.ReadDir(filepath.Join(outputDirPath, "hello"))
 		assert.NoError(t, err)
