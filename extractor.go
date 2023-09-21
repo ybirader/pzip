@@ -29,25 +29,33 @@ func (e *Extractor) Extract(archivePath string) (err error) {
 	}()
 
 	for _, file := range archiveReader.File {
-		if e.isDir(file.Name) {
-			err := os.Mkdir(e.relativeToOutputDir(file.Name), file.Mode())
-			if err != nil {
-				return derrors.Errorf("ERROR: could not create directory %s: %v", e.relativeToOutputDir(file.Name), err)
-			}
-		} else {
-			outputFile, err := os.Create(e.relativeToOutputDir(file.Name))
-			if err != nil {
-				return derrors.Errorf("ERROR: could not create file %s: %v", e.relativeToOutputDir(file.Name), err)
-			}
-			defer outputFile.Close()
-
-			fileContent, _ := file.Open()
-			defer fileContent.Close()
-			io.Copy(outputFile, fileContent)
-		}
+		e.extractFile(file)
 	}
 
 	return err
+}
+
+func (e *Extractor) extractFile(file *zip.File) error {
+	pathRelativeToRoot := e.relativeToOutputDir(file.Name)
+
+	if e.isDir(file.Name) {
+		err := os.Mkdir(pathRelativeToRoot, file.Mode())
+		if err != nil {
+			return derrors.Errorf("ERROR: could not create directory %s: %v", pathRelativeToRoot, err)
+		}
+	} else {
+		outputFile, err := os.Create(e.relativeToOutputDir(file.Name))
+		if err != nil {
+			return derrors.Errorf("ERROR: could not create file %s: %v", pathRelativeToRoot, err)
+		}
+		defer outputFile.Close()
+
+		fileContent, _ := file.Open()
+		defer fileContent.Close()
+		io.Copy(outputFile, fileContent)
+	}
+
+	return nil
 }
 
 func (e *Extractor) isDir(name string) bool {
