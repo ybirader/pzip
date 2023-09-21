@@ -2,6 +2,7 @@ package pzip
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,10 +35,15 @@ func (e *Extractor) Extract(archivePath string) (err error) {
 				return derrors.Errorf("ERROR: could not create directory %s: %v", e.relativeToOutputDir(file.Name), err)
 			}
 		} else {
-			_, err = os.Create(e.relativeToOutputDir(file.Name))
+			outputFile, err := os.Create(e.relativeToOutputDir(file.Name))
 			if err != nil {
 				return derrors.Errorf("ERROR: could not create file %s: %v", e.relativeToOutputDir(file.Name), err)
 			}
+			defer outputFile.Close()
+
+			fileContent, _ := file.Open()
+			defer fileContent.Close()
+			io.Copy(outputFile, fileContent)
 		}
 	}
 
