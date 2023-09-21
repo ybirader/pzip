@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
-	"github.com/pzip/internal/testutils"
 )
 
 const (
@@ -25,31 +24,46 @@ func TestExtract(t *testing.T) {
 		err = extractor.Extract(testArchiveFixture)
 		assert.NoError(t, err)
 
-		files, err := os.ReadDir(filepath.Join(outputDirPath, "hello"))
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(files))
-		assertDirContains(t, files, "hello.txt")
-		assertDirContains(t, files, "hello.txt")
+		files := getAllFiles(t, filepath.Join(outputDirPath, "hello"))
+		assert.Equal(t, []string{"hello.txt", "nested", "hello.md"}, Map(files, func(element fs.FileInfo) string {
+			return element.Name()
+		}))
 
-		info, err := os.Lstat(filepath.Join(outputDirPath, "hello", "hello.txt"))
-		assert.NoError(t, err)
-		assert.NotZero(t, info.Size())
-
-		files, err = os.ReadDir(filepath.Join(outputDirPath, "hello", "nested"))
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(files))
-		assertDirContains(t, files, "hello.md")
+		helloFileInfo := files[0]
+		assert.NotZero(t, helloFileInfo.Size())
 	})
 }
 
-func assertDirContains(t testing.TB, files []fs.DirEntry, name string) {
-	t.Helper()
+func getAllFiles(t testing.TB, dirPath string) []fs.FileInfo {
+	var result []fs.FileInfo
 
-	_, found := testutils.Find(files, func(element fs.DirEntry) bool {
-		return element.Name() == name
+	err := filepath.Walk(dirPath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if dirPath == path {
+			return nil
+		}
+
+		result = append(result, info)
+
+		return nil
 	})
 
-	if !found {
-		t.Errorf("expected %+v to contain %s but didn't", files, name)
+	if err != nil {
+		t.Fatalf("could not walk directory %s: %v", dirPath, err)
 	}
+
+	return result
+}
+
+func Map[T, K any](elements []T, cb func(element T) K) []K {
+	results := make([]K, len(elements))
+
+	for i, element := range elements {
+		results[i] = cb(element)
+	}
+
+	return results
 }
