@@ -27,20 +27,18 @@ func (e *Extractor) Extract(archivePath string) (err error) {
 		err = errors.Join(err, archiveReader.Close())
 	}()
 
-	file := archiveReader.File[0]
-
-	if e.isDir(file.Name) {
-		err := os.Mkdir(e.relativeToOutputDir(file.Name), file.Mode())
-		if err != nil {
-			return derrors.Errorf("ERROR: could not create directory %s: %v", e.relativeToOutputDir(file.Name), err)
+	for _, file := range archiveReader.File {
+		if e.isDir(file.Name) {
+			err := os.Mkdir(e.relativeToOutputDir(file.Name), file.Mode())
+			if err != nil {
+				return derrors.Errorf("ERROR: could not create directory %s: %v", e.relativeToOutputDir(file.Name), err)
+			}
+		} else {
+			_, err = os.Create(e.relativeToOutputDir(file.Name))
+			if err != nil {
+				return derrors.Errorf("ERROR: could not create file %s: %v", e.relativeToOutputDir(file.Name), err)
+			}
 		}
-	}
-
-	anotherFile := archiveReader.File[1]
-
-	_, err = os.Create(e.relativeToOutputDir(anotherFile.Name))
-	if err != nil {
-		return derrors.Errorf("ERROR: could not create file %s: %v", e.relativeToOutputDir(anotherFile.Name), err)
 	}
 
 	return err
