@@ -36,7 +36,7 @@ func main() {
 		return
 	}
 
-	cli := pzip.CLI{ArchivePath: args[0], Files: args[1:], Concurrency: concurrency}
+	cli := pzip.ArchiverCLI{ArchivePath: args[0], Files: args[1:], Concurrency: concurrency}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	go func() {
 		<-ctx.Done()

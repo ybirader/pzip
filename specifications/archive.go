@@ -16,7 +16,7 @@ type Archiver interface {
 	Archive()
 }
 
-func ArchiveDir(t *testing.T, driver Archiver) {
+func Archive(t *testing.T, driver Archiver) {
 	driver.Archive()
 	defer os.RemoveAll(driver.ArchivePath())
 
@@ -24,6 +24,8 @@ func ArchiveDir(t *testing.T, driver Archiver) {
 }
 
 func assertValidArchive(t testing.TB, archivePath, dirPath string) {
+	t.Helper()
+
 	tmpDirPath, err := os.MkdirTemp("", "unzipped-archive")
 	if err != nil {
 		t.Fatal("ERROR: could not create temp directory", err)
@@ -32,7 +34,6 @@ func assertValidArchive(t testing.TB, archivePath, dirPath string) {
 
 	unzip := exec.Command("unzip", archivePath, "-d", tmpDirPath)
 	unzipOutput, err := unzip.CombinedOutput()
-
 	if err != nil {
 		t.Fatalf("ERROR: could not unzip archive %s: %s: %v", archivePath, unzipOutput, err)
 	}

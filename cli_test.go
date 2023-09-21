@@ -17,13 +17,13 @@ const (
 	benchmarkDir  = "minibench" // modify this to match the file/directory you want to benchmark
 )
 
-func TestCLI(t *testing.T) {
+func TestArchiverCLI(t *testing.T) {
 	t.Run("archives a directory and some files", func(t *testing.T) {
 		files := []string{"testdata/hello", "testdata/hello.txt"}
 		archivePath := "testdata/archive.zip"
 		defer os.RemoveAll(archivePath)
 
-		cli := pzip.CLI{archivePath, files, runtime.GOMAXPROCS(0)}
+		cli := pzip.ArchiverCLI{archivePath, files, runtime.GOMAXPROCS(0)}
 		err := cli.Archive(context.Background())
 		assert.NoError(t, err)
 
@@ -34,12 +34,29 @@ func TestCLI(t *testing.T) {
 	})
 }
 
+func TestExtractorCLI(t *testing.T) {
+	t.Run("extracts an archive", func(t *testing.T) {
+		archivePath := "testdata/test.zip"
+		dirPath := "testdata/test"
+		err := os.Mkdir(dirPath, 0755)
+		assert.NoError(t, err)
+		outputDir := filepath.Join(dirPath, "hello")
+		defer os.RemoveAll(dirPath)
+
+		cli := pzip.ExtractorCLI{archivePath, dirPath}
+		err = cli.Extract()
+		assert.NoError(t, err)
+
+		assert.Equal(t, 3, len(testutils.GetAllFiles(t, outputDir)))
+	})
+}
+
 // BenchmarkCLI benchmarks the archiving of a file/directory, referenced by benchmarkDir in the benchmarkRoot directory
 func BenchmarkCLI(b *testing.B) {
 	dirPath := filepath.Join(benchmarkRoot, benchmarkDir)
 	archivePath := filepath.Join(benchmarkRoot, benchmarkDir+".zip")
 
-	cli := pzip.CLI{archivePath, []string{dirPath}, runtime.GOMAXPROCS(0)}
+	cli := pzip.ArchiverCLI{archivePath, []string{dirPath}, runtime.GOMAXPROCS(0)}
 
 	b.ReportAllocs()
 	b.ResetTimer()
