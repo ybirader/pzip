@@ -3,6 +3,7 @@ package pzip
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/klauspost/compress/zip"
 )
@@ -21,5 +22,11 @@ func (e *Extractor) Extract(archivePath string) {
 
 	file := archiveReader.File[0]
 
-	os.Mkdir(filepath.Join(e.outputDir, file.Name), file.Mode())
+	if strings.HasSuffix(filepath.ToSlash(file.Name), "/") {
+		os.Mkdir(filepath.Join(e.outputDir, file.Name), file.Mode())
+	}
+
+	anotherFile := archiveReader.File[1]
+
+	os.Create(filepath.Join(e.outputDir, anotherFile.Name))
 }

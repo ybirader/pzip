@@ -14,7 +14,7 @@ const (
 )
 
 func TestExtract(t *testing.T) {
-	t.Run("writes output directory with correct name", func(t *testing.T) {
+	t.Run("writes one file to output directory", func(t *testing.T) {
 		err := os.Mkdir(outputDirPath, 0755)
 		assert.NoError(t, err)
 		defer os.RemoveAll(outputDirPath)
@@ -22,7 +22,8 @@ func TestExtract(t *testing.T) {
 		extractor := NewExtractor(outputDirPath)
 		extractor.Extract(testArchiveFixture)
 
-		_, err = os.ReadDir(filepath.Join(outputDirPath, "hello"))
+		files, err := os.ReadDir(filepath.Join(outputDirPath, "hello"))
 		assert.NoError(t, err)
+		assert.Equal(t, 1, len(files))
 	})
 }
