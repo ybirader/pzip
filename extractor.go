@@ -12,7 +12,8 @@ import (
 )
 
 type Extractor struct {
-	outputDir string
+	outputDir     string
+	archiveReader *zip.ReadCloser
 }
 
 func NewExtractor(outputDir string) *Extractor {
@@ -20,15 +21,12 @@ func NewExtractor(outputDir string) *Extractor {
 }
 
 func (e *Extractor) Extract(archivePath string) (err error) {
-	archiveReader, err := zip.OpenReader(archivePath)
+	e.archiveReader, err = zip.OpenReader(archivePath)
 	if err != nil {
 		return derrors.Errorf("ERROR: could not read archive at %s: %v", archivePath, err)
 	}
-	defer func() {
-		err = errors.Join(err, archiveReader.Close())
-	}()
 
-	for _, file := range archiveReader.File {
+	for _, file := range e.archiveReader.File {
 		err = e.extractFile(file)
 		if err != nil {
 			return derrors.Wrapf(err, "ERROR: could not extract file %s", file.Name)
@@ -36,6 +34,15 @@ func (e *Extractor) Extract(archivePath string) (err error) {
 	}
 
 	return err
+}
+
+func (e *Extractor) Close() error {
+	err := e.archiveReader.Close()
+	if err != nil {
+		return derrors.New("ERROR: could not close archive reader")
+	}
+
+	return nil
 }
 
 func (e *Extractor) extractFile(file *zip.File) (err error) {
