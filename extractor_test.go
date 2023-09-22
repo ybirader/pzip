@@ -1,6 +1,7 @@
 package pzip
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -23,7 +24,7 @@ func TestExtract(t *testing.T) {
 
 		extractor := NewExtractor(outputDirPath)
 		defer extractor.Close()
-		err = extractor.Extract(testArchiveFixture)
+		err = extractor.Extract(context.Background(), testArchiveFixture)
 		assert.NoError(t, err)
 
 		files := testutils.GetAllFiles(t, filepath.Join(outputDirPath, "hello"))

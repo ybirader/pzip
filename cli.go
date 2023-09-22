@@ -43,7 +43,7 @@ func (e *ExtractorCLI) Extract() error {
 	extractor := NewExtractor(e.DirPath)
 	defer extractor.Close()
 
-	err := extractor.Extract(e.ArchivePath)
+	err := extractor.Extract(context.Background(), e.ArchivePath)
 	if err != nil {
 		return errors.Wrapf(err, "ERROR: could not extract %s to %s", e.ArchivePath, e.DirPath)
 	}
