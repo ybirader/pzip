@@ -11,19 +11,31 @@ import (
 
 	"github.com/klauspost/compress/zip"
 	derrors "github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
+	"github.com/pzip/pool"
 )
 
 type extractor struct {
-	outputDir     string
-	archiveReader *zip.ReadCloser
-	concurrency   int
+	outputDir      string
+	archiveReader  *zip.ReadCloser
+	fileWorkerPool pool.WorkerPool[zip.File]
+	concurrency    int
 }
 
 func NewExtractor(outputDir string) *extractor {
 	absOutputDir, _ := filepath.Abs(outputDir)
+	e := &extractor{outputDir: absOutputDir, concurrency: runtime.GOMAXPROCS(0)}
 
-	return &extractor{outputDir: absOutputDir, concurrency: runtime.GOMAXPROCS(0)}
+	fileExecutor := func(file *zip.File) error {
+		if err := e.extractFile(file); err != nil {
+			return derrors.Wrapf(err, "ERROR: could not extract file %s", file.Name)
+		}
+
+		return nil
+	}
+
+	fileWorkerPool, _ := pool.NewFileWorkerPool(fileExecutor, &pool.Config{Concurrency: e.concurrency, Capacity: 1000})
+	e.fileWorkerPool = fileWorkerPool
+	return e
 }
 
 func (e *extractor) Extract(ctx context.Context, archivePath string) (err error) {
@@ -32,24 +44,15 @@ func (e *extractor) Extract(ctx context.Context, archivePath string) (err error)
 		return derrors.Errorf("ERROR: could not read archive at %s: %v", archivePath, err)
 	}
 
-	errgroup, ctx := errgroup.WithContext(ctx)
-	errgroup.SetLimit(e.concurrency)
+	e.fileWorkerPool.Start(ctx)
 
 	for _, file := range e.archiveReader.File {
-		errgroup.Go(func(f *zip.File) func() error {
-			return func() error {
-				err = e.extractFile(f)
-				if err != nil {
-					return derrors.Wrapf(err, "ERROR: could not extract file %s", f.Name)
-				} else if err := ctx.Err(); err != nil {
-					return err
-				}
-				return nil
-			}
-		}(file))
+		e.fileWorkerPool.Enqueue(file)
 	}
 
-	err = errgroup.Wait()
+	if err = e.fileWorkerPool.Close(); err != nil {
+		return derrors.Wrap(err, "ERROR: could not close file worker pool")
+	}
 
 	return err
 }
