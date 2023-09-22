@@ -14,7 +14,8 @@ import (
 
 const (
 	benchmarkRoot            = "testdata/benchmark"
-	benchmarkDir             = "minibench" // modify this to match the file/directory you want to benchmark
+	benchmarkDir             = "minibench"            // modify this to match the file/directory you want to benchmark
+	benchmarkArchive         = "miniextractbench.zip" // modify this to match archive you want to benchmark
 	testArchiveDirectoryName = "hello"
 )
 
@@ -64,5 +65,19 @@ func BenchmarkArchiverCLI(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cli.Archive(context.Background())
+	}
+}
+
+// BenchmarkExtractorCLI benchmarks extracting an archive, referenced by benchmarkArchive
+func BenchmarkExtractorCLI(b *testing.B) {
+	archivePath := filepath.Join(benchmarkRoot, benchmarkArchive)
+
+	cli := pzip.ExtractorCLI{archivePath, benchmarkRoot}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		cli.Extract()
 	}
 }
