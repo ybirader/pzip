@@ -19,22 +19,22 @@ type Config struct {
 // A FileWorkerPool is a worker pool in which files are enqueued and for each file, the executor function is called.
 // The number of files that can be enqueued for processing at any time is defined by the capacity. The number of
 // workers processing files is set by configuring cocnurrency.
-type FileWorkerPool struct {
-	tasks       chan *File
-	executor    func(f *File) error
+type FileWorkerPool[T any] struct {
+	tasks       chan *T
+	executor    func(f *T) error
 	g           *errgroup.Group
 	ctxCancel   func(error)
 	concurrency int
 	capacity    int
 }
 
-func NewFileWorkerPool(executor func(f *File) error, config *Config) (*FileWorkerPool, error) {
+func NewFileWorkerPool[T any](executor func(f *T) error, config *Config) (*FileWorkerPool[T], error) {
 	if config.Concurrency < minConcurrency {
 		return nil, errors.New("number of workers must be greater than 0")
 	}
 
-	return &FileWorkerPool{
-		tasks:       make(chan *File, config.Capacity),
+	return &FileWorkerPool[T]{
+		tasks:       make(chan *T, config.Capacity),
 		executor:    executor,
 		g:           new(errgroup.Group),
 		concurrency: config.Concurrency,
@@ -46,7 +46,7 @@ func NewFileWorkerPool(executor func(f *File) error, config *Config) (*FileWorke
 // the concurrency option of the FileWorkerPool. The workers listen and execute tasks
 // as they are enqueued. The workers are shut down when an error occurs or the associated
 // ctx is canceled.
-func (f *FileWorkerPool) Start(ctx context.Context) {
+func (f *FileWorkerPool[T]) Start(ctx context.Context) {
 	f.reset()
 
 	ctx, cancel := context.WithCancelCause(ctx)
@@ -65,29 +65,29 @@ func (f *FileWorkerPool) Start(ctx context.Context) {
 }
 
 // Enqueue enqueues a file for processing
-func (f *FileWorkerPool) Enqueue(file *File) {
+func (f *FileWorkerPool[T]) Enqueue(file *T) {
 	f.tasks <- file
 }
 
 // PendingFiles returns the number of tasks that are waiting to be processed
-func (f FileWorkerPool) PendingFiles() int {
+func (f FileWorkerPool[T]) PendingFiles() int {
 	return len(f.tasks)
 }
 
 // Close gracefully shuts down the FileWorkerPool, ensuring all enqueued tasks have been processed.
 // Files cannot be enqueued after Close has been called; attempting this will cause a panic.
 // Close returns the first error that was encountered during file processing.
-func (f *FileWorkerPool) Close() error {
+func (f *FileWorkerPool[T]) Close() error {
 	close(f.tasks)
 	err := f.g.Wait()
 	f.ctxCancel(err)
 	return err
 }
 
-func (f *FileWorkerPool) listen(ctx context.Context) error {
+func (f *FileWorkerPool[T]) listen(ctx context.Context) error {
 	for file := range f.tasks {
 		if err := f.executor(file); err != nil {
-			return errors.Wrapf(err, "ERROR: could not process file %s", file.Path)
+			return errors.Wrapf(err, "ERROR: could not process file %s", file)
 		} else if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -96,6 +96,6 @@ func (f *FileWorkerPool) listen(ctx context.Context) error {
 	return nil
 }
 
-func (f *FileWorkerPool) reset() {
-	f.tasks = make(chan *File, f.capacity)
+func (f *FileWorkerPool[T]) reset() {
+	f.tasks = make(chan *T, f.capacity)
 }
