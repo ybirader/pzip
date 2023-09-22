@@ -21,8 +21,11 @@ type extractor struct {
 	concurrency    int
 }
 
-func NewExtractor(outputDir string) *extractor {
-	absOutputDir, _ := filepath.Abs(outputDir)
+func NewExtractor(outputDir string) (*extractor, error) {
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, errors.New("ERROR: could not get absoute path of output directory")
+	}
 	e := &extractor{outputDir: absOutputDir, concurrency: runtime.GOMAXPROCS(0)}
 
 	fileExecutor := func(file *zip.File) error {
@@ -33,9 +36,13 @@ func NewExtractor(outputDir string) *extractor {
 		return nil
 	}
 
-	fileWorkerPool, _ := pool.NewFileWorkerPool(fileExecutor, &pool.Config{Concurrency: e.concurrency, Capacity: 1000})
+	fileWorkerPool, err := pool.NewFileWorkerPool(fileExecutor, &pool.Config{Concurrency: e.concurrency, Capacity: 1000})
+	if err != nil {
+		return nil, derrors.Wrap(err, "ERROR: could not create new file worker pool")
+	}
+
 	e.fileWorkerPool = fileWorkerPool
-	return e
+	return e, nil
 }
 
 func (e *extractor) Extract(ctx context.Context, archivePath string) (err error) {
@@ -85,7 +92,10 @@ func (e *extractor) extractFile(file *zip.File) (err error) {
 		err = errors.Join(err, outputFile.Close())
 	}()
 
-	fileContent, _ := file.Open()
+	fileContent, err := file.Open()
+	if err != nil {
+		return derrors.Errorf("ERROR: could not open file %s", file.Name)
+	}
 	defer func() {
 		err = errors.Join(err, fileContent.Close())
 	}()

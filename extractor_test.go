@@ -22,8 +22,10 @@ func TestExtract(t *testing.T) {
 		assert.NoError(t, err)
 		defer os.RemoveAll(outputDirPath)
 
-		extractor := NewExtractor(outputDirPath)
+		extractor, err := NewExtractor(outputDirPath)
+		assert.NoError(t, err)
 		defer extractor.Close()
+
 		err = extractor.Extract(context.Background(), testArchiveFixture)
 		assert.NoError(t, err)
 

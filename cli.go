@@ -40,12 +40,15 @@ type ExtractorCLI struct {
 }
 
 func (e *ExtractorCLI) Extract() error {
-	extractor := NewExtractor(e.DirPath)
+	extractor, err := NewExtractor(e.DirPath)
+	if err != nil {
+		return errors.Wrap(err, "ERROR: could not create extractor")
+	}
 	defer extractor.Close()
 
-	err := extractor.Extract(context.Background(), e.ArchivePath)
-	if err != nil {
+	if err = extractor.Extract(context.Background(), e.ArchivePath); err != nil {
 		return errors.Wrapf(err, "ERROR: could not extract %s to %s", e.ArchivePath, e.DirPath)
+
 	}
 
 	return nil
