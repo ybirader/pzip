@@ -78,7 +78,7 @@ pzip --concurrency 2 /path/to/compressed.zip path/to/file_or_directory1 path/to/
 ```
 or by passing the `Concurrency` option:
 ```go
-archiver, err := pzip.NewArchiver(archive, Concurrency(2))
+archiver, err := pzip.NewArchiver(archive, ArchiverConcurrency(2))
 ```
 
 ### Benchmarks

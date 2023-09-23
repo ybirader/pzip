@@ -15,12 +15,15 @@ const (
 )
 
 func TestPunzip(t *testing.T) {
+	binPath, cleanup, err := cli.BuildBinary()
+	if err != nil {
+		t.Fatal("ERROR: could not build binary", err)
+	}
+	t.Cleanup(cleanup)
 	t.Run("extracts an archive", func(t *testing.T) {
-		binPath, cleanup, err := cli.BuildBinary()
-		if err != nil {
-			t.Fatal("ERROR: could not build binary", err)
+		if testing.Short() {
+			t.Skip()
 		}
-		t.Cleanup(cleanup)
 
 		absArchivePath, err := filepath.Abs(archivePath)
 		assert.NoError(t, err)

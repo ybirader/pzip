@@ -20,7 +20,7 @@ func (a *ArchiverCLI) Archive(ctx context.Context) error {
 	}
 	defer archive.Close()
 
-	archiver, err := NewArchiver(archive, Concurrency(a.Concurrency))
+	archiver, err := NewArchiver(archive, ArchiverConcurrency(a.Concurrency))
 	if err != nil {
 		return errors.Wrap(err, "ERROR: could not create archiver")
 	}
