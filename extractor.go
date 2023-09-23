@@ -21,7 +21,7 @@ type extractor struct {
 	concurrency    int
 }
 
-func NewExtractor(outputDir string) (*extractor, error) {
+func NewExtractor(outputDir string, options ...extractorOption) (*extractor, error) {
 	absOutputDir, err := filepath.Abs(outputDir)
 	if err != nil {
 		return nil, errors.New("ERROR: could not get absoute path of output directory")
@@ -42,6 +42,14 @@ func NewExtractor(outputDir string) (*extractor, error) {
 	}
 
 	e.fileWorkerPool = fileWorkerPool
+
+	for _, option := range options {
+		err = option(e)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return e, nil
 }
 

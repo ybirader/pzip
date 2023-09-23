@@ -37,16 +37,17 @@ func (a *ArchiverCLI) Archive(ctx context.Context) error {
 type ExtractorCLI struct {
 	ArchivePath string
 	DirPath     string
+	Concurrency int
 }
 
-func (e *ExtractorCLI) Extract() error {
-	extractor, err := NewExtractor(e.DirPath)
+func (e *ExtractorCLI) Extract(ctx context.Context) error {
+	extractor, err := NewExtractor(e.DirPath, ExtractorConcurrency(e.Concurrency))
 	if err != nil {
 		return errors.Wrap(err, "ERROR: could not create extractor")
 	}
 	defer extractor.Close()
 
-	if err = extractor.Extract(context.Background(), e.ArchivePath); err != nil {
+	if err = extractor.Extract(ctx, e.ArchivePath); err != nil {
 		return errors.Wrapf(err, "ERROR: could not extract %s to %s", e.ArchivePath, e.DirPath)
 
 	}

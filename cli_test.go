@@ -46,8 +46,8 @@ func TestExtractorCLI(t *testing.T) {
 		extractedDirPath := filepath.Join(outputDirPath, testArchiveDirectoryName)
 		defer os.RemoveAll(outputDirPath)
 
-		cli := pzip.ExtractorCLI{archivePath, outputDirPath}
-		err = cli.Extract()
+		cli := pzip.ExtractorCLI{archivePath, outputDirPath, runtime.GOMAXPROCS(0)}
+		err = cli.Extract(context.Background())
 		assert.NoError(t, err)
 
 		assert.Equal(t, 3, len(testutils.GetAllFiles(t, extractedDirPath)))
@@ -73,12 +73,12 @@ func BenchmarkArchiverCLI(b *testing.B) {
 func BenchmarkExtractorCLI(b *testing.B) {
 	archivePath := filepath.Join(benchmarkRoot, benchmarkArchive)
 
-	cli := pzip.ExtractorCLI{archivePath, benchmarkRoot}
+	cli := pzip.ExtractorCLI{archivePath, benchmarkRoot, runtime.GOMAXPROCS(0)}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cli.Extract()
+		cli.Extract(context.Background())
 	}
 }
