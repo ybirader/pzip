@@ -39,7 +39,7 @@ go install github.com/ybirader/pzip
 To build from source, we require Go 1.21 or newer.
 
 1. Clone the repository by running `git clone "https://github.com/ybirader/pzip.git"`
-2. Build by running `make build` or `cd cmd/cli && go build`
+2. Build by running `make build` or `cd cmd/pzip && go build`
 
 ## Usage
 
