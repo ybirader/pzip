@@ -7,6 +7,7 @@ import (
 
 	"github.com/alecthomas/assert/v2"
 	"github.com/pzip/adapters/cli"
+	"github.com/pzip/internal/testutils"
 	"github.com/pzip/specifications"
 )
 
@@ -25,7 +26,7 @@ func TestPzip(t *testing.T) {
 
 	t.Run("outputs usage to stderr when no arguments or flags provided", func(t *testing.T) {
 		pzip := exec.Command(binPath)
-		out := getOutput(t, pzip)
+		out := testutils.GetOutput(t, pzip)
 
 		assert.Contains(t, out, "pzip is a tool for archiving files concurrently.\n")
 		assert.Contains(t, out, "Usage")
@@ -33,7 +34,7 @@ func TestPzip(t *testing.T) {
 
 	t.Run("outputs error when only one argument passed", func(t *testing.T) {
 		pzip := exec.Command(binPath, "archive.zip")
-		out := getOutput(t, pzip)
+		out := testutils.GetOutput(t, pzip)
 
 		assert.Contains(t, out, "pzip error: invalid usage\n")
 	})
@@ -57,13 +58,4 @@ func TestPzip(t *testing.T) {
 
 		specifications.Archive(t, driver)
 	})
-}
-
-func getOutput(t testing.TB, cmd *exec.Cmd) string {
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatal("ERROR: could not get output of cmd", string(out), err)
-	}
-
-	return string(out)
 }

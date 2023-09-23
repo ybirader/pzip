@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -87,6 +88,15 @@ func GetAllFiles(t testing.TB, dirPath string) []fs.FileInfo {
 	}
 
 	return result
+}
+
+func GetOutput(t testing.TB, cmd *exec.Cmd) string {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal("ERROR: could not get output of cmd", string(out), err)
+	}
+
+	return string(out)
 }
 
 func Map[T, K any](elements []T, cb func(element T) K) []K {
