@@ -13,7 +13,6 @@ builds:
     binary: pzip
     goos:
       - linux
-      - windows
       - darwin
       - freebsd
     goarch:
@@ -27,7 +26,6 @@ builds:
     binary: punzip
     goos:
       - linux
-      - windows
       - darwin
       - freebsd
     goarch:
