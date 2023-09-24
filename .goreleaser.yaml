@@ -105,6 +105,20 @@ release:
     name: pzip
   draft: true
   prerelease: auto
+  header: |
+    ## Features
+
+    List of newly introduced features:
+
+    - Item 1
+    - Item 2
+
+    ## Bug fixes
+
+    List of fixed issues:
+
+    - Item 1
+    - Item 2
 
 brews:
   - name: pzip
