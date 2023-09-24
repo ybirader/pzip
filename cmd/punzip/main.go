@@ -22,9 +22,9 @@ func main() {
 	}
 
 	var concurrency int
-	var dirPath string
+	var outputDir string
 	flag.IntVar(&concurrency, "concurrency", runtime.GOMAXPROCS(0), "allow up to n compression routines")
-	flag.StringVar(&dirPath, "d", ".", "extract files into the specified directory")
+	flag.StringVar(&outputDir, "d", ".", "extract files into the specified directory")
 
 	flag.Parse()
 
@@ -35,7 +35,7 @@ func main() {
 		return
 	}
 
-	cli := pzip.ExtractorCLI{ArchivePath: args[0], DirPath: dirPath, Concurrency: concurrency}
+	cli := pzip.ExtractorCLI{ArchivePath: args[0], OutputDir: outputDir, Concurrency: concurrency}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	go func() {
 		<-ctx.Done()
