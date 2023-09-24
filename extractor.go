@@ -75,7 +75,7 @@ func (e *extractor) Extract(ctx context.Context, archivePath string) (err error)
 		return derrors.Wrap(err, "ERROR: could not close file worker pool")
 	}
 
-	return err
+	return
 }
 
 func (e *extractor) Close() error {
@@ -90,15 +90,39 @@ func (e *extractor) Close() error {
 func (e *extractor) extractFile(file *zip.File) (err error) {
 	outputPath := e.outputPath(file.Name)
 
-	if err = os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil { // TODO: need to set correct file mode as specified by file
+	if err = os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return derrors.Errorf("ERROR: could not directories %s: %+v", outputPath, err)
 	}
 
 	if e.isDir(file.Name) {
-		return nil
+		if err = e.writeDir(outputPath, file); err != nil {
+			return derrors.Wrapf(err, "ERROR: could not write directory %s", file.Name)
+		}
+		return
 	}
 
-	outputFile, err := os.Create(e.outputPath(file.Name))
+	if err = e.writeFile(outputPath, file); err != nil {
+		return derrors.Wrapf(err, "ERROR: could not write file %s", file.Name)
+	}
+
+	return
+}
+
+func (e *extractor) writeDir(outputPath string, file *zip.File) error {
+	err := os.Mkdir(outputPath, file.Mode())
+	if os.IsExist(err) {
+		os.Chmod(outputPath, file.Mode())
+		err = nil
+	}
+	if err != nil {
+		return derrors.Errorf("ERROR: could not create directory %s: %+v", file.Name, err)
+	}
+
+	return nil
+}
+
+func (e *extractor) writeFile(outputPath string, file *zip.File) (err error) {
+	outputFile, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY, file.Mode())
 	if err != nil {
 		return derrors.Errorf("ERROR: could not create file %s: %v", outputPath, err)
 	}
@@ -119,7 +143,7 @@ func (e *extractor) extractFile(file *zip.File) (err error) {
 		return derrors.Errorf("ERROR: could not decompress file %s", file.Name)
 	}
 
-	return nil
+	return
 }
 
 func (e *extractor) isDir(name string) bool {
