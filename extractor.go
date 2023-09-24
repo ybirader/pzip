@@ -21,6 +21,9 @@ type extractor struct {
 	concurrency    int
 }
 
+// NewExtractor returns a new pzip extractor. The extractor can be configured by passing in a number of options.
+// Available options include ExtractorConcurrency(n int). It returns an error if the extractor can't be created
+// Close() should be called on the returned extractor when done
 func NewExtractor(outputDir string, options ...extractorOption) (*extractor, error) {
 	absOutputDir, err := filepath.Abs(outputDir)
 	if err != nil {
@@ -53,6 +56,9 @@ func NewExtractor(outputDir string, options ...extractorOption) (*extractor, err
 	return e, nil
 }
 
+// Extract extracts the files from the specified archivePath to
+// the corresponding outputDir registered with the extractor. Extraction is canceled when the
+// associated ctx is canceled. The first error that arises during extraction is returned.
 func (e *extractor) Extract(ctx context.Context, archivePath string) (err error) {
 	e.archiveReader, err = zip.OpenReader(archivePath)
 	if err != nil {

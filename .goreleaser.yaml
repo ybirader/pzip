@@ -5,25 +5,56 @@ before:
     - go mod tidy
 
 builds:
-- env:
-  - CGO_ENABLED=0
-  - GO111MODULE=on
-  main: ./cmd/pzip/
-  binary: pzip
-  goos:
-    - linux
-    - windows
-    - darwin
-    - freebsd
-  goarch:
-    - amd64
-    - arm64
+  - id: pzip
+    env:
+    - CGO_ENABLED=0
+    - GO111MODULE=on
+    main: ./cmd/pzip/
+    binary: pzip
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+  - id: punzip
+    env:
+    - CGO_ENABLED=0
+    - GO111MODULE=on
+    main: ./cmd/punzip/
+    binary: punzip
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
 
 archives:
-  - id: default
+  - id: pzip-archive
     format: tar.gz
+    builds:
+      - pzip
     name_template: >-
-      {{ .ProjectName }}_
+      pzip_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+    - goos: windows
+      format: zip
+  - id: punzip-archive
+    format: tar.gz
+    builds:
+      - punzip
+    name_template: >-
+      punzip_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
@@ -45,7 +76,9 @@ changelog:
       - '^readme:'
 
 nfpms:
-  - id: default
+  - id: pzip-package
+    builds:
+      - pzip
     package_name: pzip
     maintainer: Yusuf Birader <ybirader@users.noreply.github.com>
     homepage: https://github.com/ybirader/pzip
@@ -55,7 +88,18 @@ nfpms:
     formats:
       - deb
     bindir: /usr/bin
-
+  - id: punzip-package
+    builds:
+      - punzip
+    package_name: punzip
+    maintainer: Yusuf Birader <ybirader@users.noreply.github.com>
+    homepage: https://github.com/ybirader/pzip
+    description: |
+      punzip, short for parallel-unzip, is a blazing fast concurrent zip extractor.
+    license: Apache 2.0
+    formats:
+      - deb
+    bindir: /usr/bin
 
 release:
   github:
@@ -69,6 +113,17 @@ brews:
     description: "pzip, short for parallel-zip, is a blazing fast concurrent zip archiver."
     license: Apache 2.0
     homepage: https://github.com/ybirader/pzip
+    ids:
+      - pzip-archive
+    repository:
+      name: homebrew-pzip
+      owner: ybirader
+  - name: punzip
+    description: "punzip, short for parallel-unzip, is a blazing fast concurrent zip extractor."
+    license: Apache 2.0
+    homepage: https://github.com/ybirader/pzip
+    ids:
+      - punzip-archive
     repository:
       name: homebrew-pzip
       owner: ybirader

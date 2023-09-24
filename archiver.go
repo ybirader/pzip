@@ -41,7 +41,7 @@ type archiver struct {
 }
 
 // NewArchiver returns a new pzip archiver. The archiver can be configured by passing in a number of options.
-// Available options include Concurrency(n int). It returns an error if the archiver can't be created
+// Available options include ArchiverConcurrency(n int). It returns an error if the archiver can't be created
 // Close() should be called on the returned archiver when done
 func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error) {
 	a := &archiver{

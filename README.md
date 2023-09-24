@@ -1,7 +1,7 @@
 ![logo-5](https://github.com/ybirader/pzip/assets/68111562/0b3cee2c-1af0-4753-b088-8a488f8ff642)
 
 # pzip
-pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
+pzip, short for parallel-zip, is a blazing fast concurrent zip archiver and extractor.
 
 ## Features
 
@@ -11,20 +11,33 @@ pzip, short for parallel-zip, is a blazing fast concurrent zip archiver.
 
 ## Installation
 
-To install pzip, run:
+### Command Line
+
+For command-line usage, we provide two binaries which can be installed separately:
+- pzip- concurrent zip archiving
+- punzip- concurrent zip extraction
+
+To install, run:
 
 ### macOS
 
- `brew install ybirader/pzip/pzip`
+For zip archiving: `brew install ybirader/pzip/pzip`
+For zip extraction: `brew install ybirader/pzip/punzip`
 
-### Debian, Ubuntu, Raspbian
+#### Debian, Ubuntu, Raspbian
 
-For the latest stable release*:
+For the latest stable release:
 
 ```
 curl -1sLf 'https://dl.cloudsmith.io/public/pzip/stable/setup.deb.sh' | sudo -E bash
 sudo apt update
 sudo apt install pzip
+```
+
+```
+curl -1sLf 'https://dl.cloudsmith.io/public/pzip/stable/setup.deb.sh' | sudo -E bash
+sudo apt update
+sudo apt install punzip
 ```
 
 ### Go
@@ -39,17 +52,19 @@ go install github.com/ybirader/pzip
 To build from source, we require Go 1.21 or newer.
 
 1. Clone the repository by running `git clone "https://github.com/ybirader/pzip.git"`
-2. Build by running `make build` or `cd cmd/pzip && go build`
+2. Build both pzip and punzip by running `make build` or build separately via `cd cmd/pzip && go build` and `cd cmd/punzip && go build`
 
 ## Usage
 
-pzip's API is similar to that of the standard zip utlity found on most *-nix systems.
+### Archiving
+
+`pzip`'s API is similar to that of the standard zip utlity found on most *-nix systems.
 
 ```
 pzip /path/to/compressed.zip path/to/file_or_directory1 path/to/file_or_directory2 ... path/to/file_or_directoryN
 ```
 
-Alternatively, pzip can be imported as a library
+Alternatively, pzip can be imported as a package
 
 ```go
 archive, err := os.Create("archive.zip")
@@ -76,10 +91,52 @@ The concurrency of the archiver can be configured using the corresponding flag:
 pzip --concurrency 2 /path/to/compressed.zip path/to/file_or_directory1 path/to/file_or_directory2 ... path/to/file_or_directoryN
 
 ```
-or by passing the `Concurrency` option:
+or by passing the `ArchiverConcurrency` option:
 ```go
 archiver, err := pzip.NewArchiver(archive, ArchiverConcurrency(2))
 ```
+
+### Extraction
+
+`punzip`'s API is similar to that of the standard unzip utlity found on most *-nix systems.
+
+```
+punzip /path/to/compressed.zip
+```
+
+By default, `punzip` extracts into the current directory. We can extract to a particular path by:
+```
+punzip -d /path/to/output /path/to/compressed.zip
+```
+
+Using the Go package, we have:
+```go
+outputDirPath := "./output"
+archivePath := "./archive.zip"
+
+extractor, err := pzip.NewExtractor(outputDirPath)
+if err != nil {
+  log.Fatal(err)
+}
+defer extractor.Close()
+
+err = extractor.Extract(context.Background(), archivePath)
+if err != nil {
+  log.Fatal(err)
+}
+```
+
+As with pzip, we can configure the concurrency of the extractor using:
+
+```
+punzip --concurrency 2 /path/to/compressed.zip
+```
+
+Similarly, with the Go package, we pass in the `ExtractorConcurrency` option:
+```go
+extractor, err := pzip.NewExtractor(outputDirPath, ExtractorConcurrency(2))
+```
+
 
 ### Benchmarks
 
