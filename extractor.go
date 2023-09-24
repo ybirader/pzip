@@ -39,7 +39,7 @@ func NewExtractor(outputDir string, options ...extractorOption) (*extractor, err
 		return nil
 	}
 
-	fileWorkerPool, err := pool.NewFileWorkerPool(fileExecutor, &pool.Config{Concurrency: e.concurrency, Capacity: 1000})
+	fileWorkerPool, err := pool.NewFileWorkerPool(fileExecutor, &pool.Config{Concurrency: e.concurrency, Capacity: 10})
 	if err != nil {
 		return nil, derrors.Wrap(err, "ERROR: could not create new file worker pool")
 	}
@@ -106,15 +106,15 @@ func (e *extractor) extractFile(file *zip.File) (err error) {
 		err = errors.Join(err, outputFile.Close())
 	}()
 
-	fileContent, err := file.Open()
+	srcFile, err := file.Open()
 	if err != nil {
 		return derrors.Errorf("ERROR: could not open file %s", file.Name)
 	}
 	defer func() {
-		err = errors.Join(err, fileContent.Close())
+		err = errors.Join(err, srcFile.Close())
 	}()
 
-	_, err = io.Copy(outputFile, fileContent)
+	_, err = io.Copy(outputFile, srcFile)
 	if err != nil {
 		return derrors.Errorf("ERROR: could not decompress file %s", file.Name)
 	}

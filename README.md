@@ -14,14 +14,15 @@ pzip, short for parallel-zip, is a blazing fast concurrent zip archiver and extr
 ### Command Line
 
 For command-line usage, we provide two binaries which can be installed separately:
-- pzip- concurrent zip archiving
-- punzip- concurrent zip extraction
+- **pzip-** concurrent zip archiving
+- **punzip-** concurrent zip extraction
 
 To install, run:
 
 ### macOS
 
 For zip archiving: `brew install ybirader/pzip/pzip`
+
 For zip extraction: `brew install ybirader/pzip/punzip`
 
 #### Debian, Ubuntu, Raspbian
