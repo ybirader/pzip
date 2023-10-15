@@ -14,7 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
-	"github.com/pzip/pool"
+	"github.com/ybirader/pzip/pool"
 )
 
 const (

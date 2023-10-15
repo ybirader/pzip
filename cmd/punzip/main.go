@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"runtime"
 
-	"github.com/pzip"
+	"github.com/ybirader/pzip"
 )
 
 const description = "punzip is a tool for extracting files concurrently."

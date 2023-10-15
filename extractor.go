@@ -11,7 +11,7 @@ import (
 
 	"github.com/klauspost/compress/zip"
 	derrors "github.com/pkg/errors"
-	"github.com/pzip/pool"
+	"github.com/ybirader/pzip/pool"
 )
 
 type extractor struct {

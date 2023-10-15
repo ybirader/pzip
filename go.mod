@@ -1,4 +1,4 @@
-module github.com/pzip
+module github.com/ybirader/pzip
 
 go 1.21
 

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
-	"github.com/pzip"
-	"github.com/pzip/internal/testutils"
+	"github.com/ybirader/pzip"
+	"github.com/ybirader/pzip/internal/testutils"
 )
 
 const (

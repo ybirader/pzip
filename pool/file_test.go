@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/alecthomas/assert/v2"
-	"github.com/pzip/internal/testutils"
-	"github.com/pzip/pool"
+	"github.com/ybirader/pzip/internal/testutils"
+	"github.com/ybirader/pzip/pool"
 )
 
 const (
