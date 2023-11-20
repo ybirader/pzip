@@ -1,5 +1,7 @@
 package pzip
 
+import "fmt"
+
 type extractorOption func(*extractor) error
 
 // ExtractorConcurrency sets the number of goroutines used during extraction
@@ -7,7 +9,7 @@ type extractorOption func(*extractor) error
 func ExtractorConcurrency(n int) extractorOption {
 	return func(e *extractor) error {
 		if n < minConcurrency {
-			return ErrMinConcurrency
+			return fmt.Errorf("concurrency %d not greater than zero", n)
 		}
 
 		e.concurrency = n

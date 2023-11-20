@@ -30,7 +30,8 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive(context.Background(), []string{helloTxtFileFixture})
+		err = archiver.Archive(context.Background(), []string{helloTxtFileFixture})
+		assert.NoError(t, err)
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -53,7 +54,8 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive(context.Background(), []string{helloTxtFileFixture})
+		err = archiver.Archive(context.Background(), []string{helloTxtFileFixture})
+		assert.NoError(t, err)
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())
@@ -75,7 +77,8 @@ func TestArchive(t *testing.T) {
 
 		archiver, err := NewArchiver(archive)
 		assert.NoError(t, err)
-		archiver.Archive(context.Background(), []string{helloTxtFileFixture, helloMarkdownFileFixture})
+		err = archiver.Archive(context.Background(), []string{helloTxtFileFixture, helloMarkdownFileFixture})
+		assert.NoError(t, err)
 		archiver.Close()
 
 		archiveReader := testutils.GetArchiveReader(t, archive.Name())

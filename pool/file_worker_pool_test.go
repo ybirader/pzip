@@ -74,7 +74,7 @@ func TestFileWorkerPool(t *testing.T) {
 	t.Run("stops workers with first error encountered by a goroutine", func(t *testing.T) {
 		executor := func(file *pool.File) error {
 			if file.Path == "1" {
-				return errors.New("ERROR: file is corrupt")
+				return errors.New("file is corrupt")
 			}
 
 			return nil

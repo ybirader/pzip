@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"context"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"io/fs"
@@ -13,7 +14,6 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/pkg/errors"
 	"github.com/ybirader/pzip/pool"
 )
 
@@ -53,7 +53,7 @@ func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error)
 	fileProcessExecutor := func(file *pool.File) error {
 		err := a.compress(file)
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not compress file %s", file.Path)
+			return fmt.Errorf("compress file %q: %w", file.Path, err)
 		}
 
 		a.fileWriterPool.Enqueue(file)
@@ -63,14 +63,14 @@ func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error)
 
 	fileProcessPool, err := pool.NewFileWorkerPool(fileProcessExecutor, &pool.Config{Concurrency: a.concurrency, Capacity: 1})
 	if err != nil {
-		return nil, errors.Wrap(err, "ERROR: could not create file processor pool")
+		return nil, fmt.Errorf("new file process pool: %w", err)
 	}
 	a.fileProcessPool = fileProcessPool
 
 	fileWriterExecutor := func(file *pool.File) error {
 		err := a.archive(file)
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not write file %s to archive", file.Path)
+			return fmt.Errorf("archive %q: %w", file.Path, err)
 		}
 
 		return nil
@@ -78,7 +78,7 @@ func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error)
 
 	fileWriterPool, err := pool.NewFileWorkerPool(fileWriterExecutor, &pool.Config{Concurrency: sequentialWrites, Capacity: 1})
 	if err != nil {
-		return nil, errors.Wrap(err, "ERROR: could not create file writer pool")
+		return nil, fmt.Errorf("new file writer pool: %w", err)
 	}
 	a.fileWriterPool = fileWriterPool
 
@@ -102,54 +102,50 @@ func (a *archiver) Archive(ctx context.Context, filePaths []string) error {
 	for _, path := range filePaths {
 		info, err := os.Lstat(path)
 		if err != nil {
-			return errors.Errorf("ERROR: could not get stat of %s: %v", path, err)
+			return fmt.Errorf("lstat %q: %w", path, err)
 		}
 
 		if info.IsDir() {
-			err = a.archiveDir(path)
+			if err = a.archiveDir(path); err != nil {
+				return fmt.Errorf("archive dir %q: %w", path, err)
+			}
 		} else {
 			a.chroot = ""
 			file, err := pool.NewFile(path, info, "")
 			if err != nil {
-				return errors.Wrapf(err, "ERROR: could not create new file %s", path)
+				return fmt.Errorf("new file %q: %w", path, err)
 			}
 
 			a.archiveFile(file)
 		}
-
-		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not archive %s", path)
-		}
 	}
 
 	if err := a.fileProcessPool.Close(); err != nil {
-		return errors.Wrap(err, "ERROR: could not close file process pool")
+		return fmt.Errorf("close file process pool: %w", err)
 	}
+
 	if err := a.fileWriterPool.Close(); err != nil {
-		return errors.Wrap(err, "ERROR: could not close file writer pool")
+		return fmt.Errorf("close file writer pool: %w", err)
 	}
 
 	return nil
 }
 
 func (a *archiver) Close() error {
-	err := a.w.Close()
-	if err != nil {
-		return errors.New("ERROR: could not close archiver")
+	if err := a.w.Close(); err != nil {
+		return fmt.Errorf("close zip writer: %w", err)
 	}
 
 	return nil
 }
 
 func (a *archiver) archiveDir(root string) error {
-	err := a.changeRoot(root)
-	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not set chroot of archive to %s", root)
+	if err := a.changeRoot(root); err != nil {
+		return fmt.Errorf("change root to %q: %w", root, err)
 	}
 
-	err = a.walkDir()
-	if err != nil {
-		return errors.Wrap(err, "ERROR: could not walk directory")
+	if err := a.walkDir(); err != nil {
+		return fmt.Errorf("walk directory: %w", err)
 	}
 
 	return nil
@@ -162,7 +158,7 @@ func (a *archiver) archiveFile(file *pool.File) {
 func (a *archiver) changeRoot(root string) error {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		return errors.Errorf("ERROR: could not determine absolute path of %s", root)
+		return fmt.Errorf("get absolute path of %q: %w", root, err)
 	}
 
 	a.chroot = absRoot
@@ -170,53 +166,45 @@ func (a *archiver) changeRoot(root string) error {
 }
 
 func (a *archiver) walkDir() error {
-	err := filepath.Walk(a.chroot, func(path string, info fs.FileInfo, err error) error {
+	if err := filepath.Walk(a.chroot, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		file, err := pool.NewFile(path, info, a.chroot)
 		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not create new file %s", path)
+			return fmt.Errorf("new file %q: %w", path, err)
 		}
 		a.archiveFile(file)
 
 		return nil
-	})
-
-	if err != nil {
-		return errors.Errorf("ERROR: could not walk directory %s", a.chroot)
+	}); err != nil {
+		return fmt.Errorf("walk directory %q: %w", a.chroot, err)
 	}
 
 	return nil
 }
 
 func (a *archiver) compress(file *pool.File) error {
-	var err error
-
 	if file.Info.IsDir() {
-		err = a.populateHeader(file)
-		if err != nil {
-			return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+		if err := a.populateHeader(file); err != nil {
+			return fmt.Errorf("populate header for %q: %w", file.Path, err)
 		}
 		return nil
 	}
 
 	hasher := crc32.NewIEEE()
 
-	err = a.copy(io.MultiWriter(file.Compressor, hasher), file)
-	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not read file %s", file.Path)
+	if err := a.copy(io.MultiWriter(file.Compressor, hasher), file); err != nil {
+		return fmt.Errorf("copy %q: %w", file.Path, err)
 	}
 
-	err = file.Compressor.Close()
-	if err != nil {
-		return errors.New("ERROR: could not close compressor")
+	if err := file.Compressor.Close(); err != nil {
+		return fmt.Errorf("close compressor for %q: %w", file.Path, err)
 	}
 
-	err = a.populateHeader(file)
-	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not populate file header for %s", file.Path)
+	if err := a.populateHeader(file); err != nil {
+		return fmt.Errorf("populate header for %q: %w", file.Path, err)
 	}
 
 	file.Header.CRC32 = hasher.Sum32()
@@ -226,16 +214,17 @@ func (a *archiver) compress(file *pool.File) error {
 func (a *archiver) copy(w io.Writer, file *pool.File) error {
 	f, err := os.Open(file.Path)
 	if err != nil {
-		return errors.Errorf("ERROR: could not open file %s", file.Path)
+		return fmt.Errorf("open %q: %w", file.Path, err)
 	}
 	defer f.Close()
 
 	buf := bufferPool.Get().(*bufio.Reader)
 	buf.Reset(f)
+
 	_, err = io.Copy(w, buf)
 	bufferPool.Put(buf)
 	if err != nil {
-		return errors.Errorf("ERROR: could not read file %s: %v", file.Path, err)
+		return fmt.Errorf("copy %q: %w", file.Path, err)
 	}
 
 	return nil
@@ -284,23 +273,25 @@ func (a *archiver) populateHeader(file *pool.File) error {
 func (a *archiver) archive(file *pool.File) error {
 	fileWriter, err := a.w.CreateRaw(file.Header)
 	if err != nil {
-		return errors.Errorf("ERROR: could not write raw header for %s", file.Path)
+		return fmt.Errorf("create raw for %q: %w", file.Path, err)
 	}
 
-	_, err = io.Copy(fileWriter, file.CompressedData)
-	if err != nil {
-		return errors.Errorf("ERROR: could not write content for %s", file.Path)
+	if _, err = io.Copy(fileWriter, file.CompressedData); err != nil {
+		return fmt.Errorf("write compressed data for %q: %w", file.Path, err)
 	}
 
 	if file.Overflowed() {
-		file.Overflow.Seek(0, io.SeekStart)
-		_, err = io.Copy(fileWriter, file.Overflow)
-		if err != nil {
-			return errors.Errorf("ERROR: could not write overflow content for %s", file.Path)
+		if _, err = file.Overflow.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("seek overflow for %q: %w", file.Path, err)
+		}
+		if _, err = io.Copy(fileWriter, file.Overflow); err != nil {
+			return fmt.Errorf("copy overflow for %q: %w", file.Path, err)
 		}
 
 		file.Overflow.Close()
-		os.Remove(file.Overflow.Name())
+		if err = os.Remove(file.Overflow.Name()); err != nil {
+			return fmt.Errorf("remove overflow for %q: %w", file.Overflow.Name(), err)
+		}
 	}
 
 	pool.FilePool.Put(file)
