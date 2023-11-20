@@ -108,6 +108,6 @@ func (f *File) setNameRelativeTo(root string) error {
 	if err != nil {
 		return errors.Errorf("ERROR: could not find relative path of %s to root %s", f.Path, root)
 	}
-	f.Header.Name = filepath.Join(filepath.Base(root), relativeToRoot)
+	f.Header.Name = filepath.ToSlash(filepath.Join(filepath.Base(root), relativeToRoot))
 	return nil
 }
