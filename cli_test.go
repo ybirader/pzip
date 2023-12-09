@@ -65,7 +65,9 @@ func BenchmarkArchiverCLI(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cli.Archive(context.Background())
+		if err := cli.Archive(context.Background()); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -79,6 +81,8 @@ func BenchmarkExtractorCLI(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		cli.Extract(context.Background())
+		if err := cli.Extract(context.Background()); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

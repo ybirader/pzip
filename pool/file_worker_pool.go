@@ -2,8 +2,8 @@ package pool
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -18,7 +18,7 @@ type Config struct {
 
 // A FileWorkerPool is a worker pool in which files are enqueued and for each file, the executor function is called.
 // The number of files that can be enqueued for processing at any time is defined by the capacity. The number of
-// workers processing files is set by configuring cocnurrency.
+// workers processing files is set by configuring concurrency.
 type FileWorkerPool[T any] struct {
 	tasks       chan *T
 	executor    func(f *T) error
@@ -30,7 +30,7 @@ type FileWorkerPool[T any] struct {
 
 func NewFileWorkerPool[T any](executor func(f *T) error, config *Config) (*FileWorkerPool[T], error) {
 	if config.Concurrency < minConcurrency {
-		return nil, errors.New("number of workers must be greater than 0")
+		return nil, fmt.Errorf("concurrency %d not greater than zero", config.Concurrency)
 	}
 
 	return &FileWorkerPool[T]{
@@ -87,7 +87,7 @@ func (f *FileWorkerPool[T]) Close() error {
 func (f *FileWorkerPool[T]) listen(ctx context.Context) error {
 	for file := range f.tasks {
 		if err := f.executor(file); err != nil {
-			return errors.Wrapf(err, "ERROR: could not process file %s", file)
+			return fmt.Errorf("process file: %w", err)
 		} else if err := ctx.Err(); err != nil {
 			return err
 		}

@@ -2,9 +2,8 @@ package pzip
 
 import (
 	"context"
+	"fmt"
 	"os"
-
-	"github.com/pkg/errors"
 )
 
 type ArchiverCLI struct {
@@ -16,19 +15,19 @@ type ArchiverCLI struct {
 func (a *ArchiverCLI) Archive(ctx context.Context) error {
 	archive, err := os.Create(a.ArchivePath)
 	if err != nil {
-		return errors.Errorf("ERROR: could not create archive at %s", a.ArchivePath)
+		return fmt.Errorf("create archive at %q: %w", a.ArchivePath, err)
 	}
 	defer archive.Close()
 
 	archiver, err := NewArchiver(archive, ArchiverConcurrency(a.Concurrency))
 	if err != nil {
-		return errors.Wrap(err, "ERROR: could not create archiver")
+		return fmt.Errorf("create archiver: %w", err)
 	}
 	defer archiver.Close()
 
 	err = archiver.Archive(ctx, a.Files)
 	if err != nil {
-		return errors.Wrapf(err, "ERROR: could not archive files")
+		return fmt.Errorf("archive files: %w", err)
 	}
 
 	return nil
@@ -43,12 +42,12 @@ type ExtractorCLI struct {
 func (e *ExtractorCLI) Extract(ctx context.Context) error {
 	extractor, err := NewExtractor(e.OutputDir, ExtractorConcurrency(e.Concurrency))
 	if err != nil {
-		return errors.Wrap(err, "ERROR: could not create extractor")
+		return fmt.Errorf("new extractor: %w", err)
 	}
 	defer extractor.Close()
 
 	if err = extractor.Extract(ctx, e.ArchivePath); err != nil {
-		return errors.Wrapf(err, "ERROR: could not extract %s to %s", e.ArchivePath, e.OutputDir)
+		return fmt.Errorf("extract %q to %q: %w", e.ArchivePath, e.OutputDir, err)
 
 	}
 
