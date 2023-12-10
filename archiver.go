@@ -32,12 +32,13 @@ var bufferPool = sync.Pool{
 }
 
 type archiver struct {
-	dest            *os.File
-	concurrency     int
-	w               *zip.Writer
-	fileProcessPool pool.WorkerPool[pool.File]
-	fileWriterPool  pool.WorkerPool[pool.File]
-	chroot          string
+	dest                *os.File
+	concurrency         int
+	w                   *zip.Writer
+	fileProcessPool     pool.WorkerPool[pool.File]
+	fileWriterPool      pool.WorkerPool[pool.File]
+	chroot              string
+	absoluteArchivePath string
 }
 
 // NewArchiver returns a new pzip archiver. The archiver can be configured by passing in a number of options.
@@ -48,6 +49,12 @@ func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error)
 		dest:        archive,
 		w:           zip.NewWriter(archive),
 		concurrency: runtime.GOMAXPROCS(0),
+	}
+
+	var err error
+	a.absoluteArchivePath, err = filepath.Abs(archive.Name())
+	if err != nil {
+		return nil, fmt.Errorf("absolute archive path %q: %w", archive.Name(), err)
 	}
 
 	fileProcessExecutor := func(file *pool.File) error {
@@ -151,7 +158,14 @@ func (a *archiver) archiveDir(root string) error {
 	return nil
 }
 
+// archiveFile enqueues file for archiving if it doesn't match
+// our output file.
 func (a *archiver) archiveFile(file *pool.File) {
+	if file.Path == a.absoluteArchivePath {
+		// Don't archive the output file.
+		return
+	}
+
 	a.fileProcessPool.Enqueue(file)
 }
 
