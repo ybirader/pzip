@@ -32,7 +32,7 @@ var bufferPool = sync.Pool{
 }
 
 type archiver struct {
-	dest                *os.File
+	xArchive            *os.File
 	concurrency         int
 	w                   *zip.Writer
 	fileProcessPool     pool.WorkerPool[pool.File]
@@ -46,7 +46,7 @@ type archiver struct {
 // Close() should be called on the returned archiver when done
 func NewArchiver(archive *os.File, options ...archiverOption) (*archiver, error) {
 	a := &archiver{
-		dest:        archive,
+		xArchive:    archive,
 		w:           zip.NewWriter(archive),
 		concurrency: runtime.GOMAXPROCS(0),
 	}
